@@ -12,7 +12,7 @@ func Decode(b []byte) (*Message, error) {
 
 	message.Questions = make([]Question, message.Header.QuestionCount)
 	message.Answers = make([]RR, message.Header.AnswerCount)
-	message.Authority = make([]RR, message.Header.NameServerCount)
+	message.Authority = make([]RR, message.Header.AuthoritativeCount)
 	message.Additional = make([]RR, message.Header.AdditionalCount)
 
 	for i := 0; i < int(message.Header.QuestionCount); i++ {
@@ -52,7 +52,7 @@ func decodeHeader(buf *dnsBuffer, header *Header) error {
 	header.ResponseCode = uint8(flags & 0b1111)
 	header.QuestionCount = buf.ReadU16()
 	header.AnswerCount = buf.ReadU16()
-	header.NameServerCount = buf.ReadU16()
+	header.AuthoritativeCount = buf.ReadU16()
 	header.AdditionalCount = buf.ReadU16()
 
 	return nil
@@ -83,7 +83,7 @@ func decodeResourceRecord(buf *dnsBuffer, rr *RR) error {
 	// TODO: error checking
 	ty := buf.ReadU16()
 	class := buf.ReadU16()
-	ttl := buf.ReadU16()
+	ttl := buf.ReadU32()
 	dlen := buf.ReadU16()
 	data := buf.Read(int(dlen))
 

@@ -36,7 +36,7 @@ func encodeHeader(buf *dnsBuffer, header *Header) {
 
 	buf.WriteU16(header.QuestionCount)
 	buf.WriteU16(header.AnswerCount)
-	buf.WriteU16(header.NameServerCount)
+	buf.WriteU16(header.AuthoritativeCount)
 	buf.WriteU16(header.AdditionalCount)
 }
 
@@ -61,12 +61,13 @@ func encodeResourceRecord(buf *dnsBuffer, rr *RR) error {
 	}
 	buf.WriteU16(rr.Type)
 	buf.WriteU16(rr.Class)
-	buf.WriteU16(rr.TTL)
+	buf.WriteU32(rr.TTL)
 
 	if len(rr.Data) > 0xFFFF {
 		return ErrResourceRecordDataToLarge
 	}
 	buf.WriteU16(uint16(len(rr.Data)))
+	buf.Write(rr.Data)
 
 	return nil
 }
