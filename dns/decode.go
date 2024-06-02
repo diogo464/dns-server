@@ -1,6 +1,8 @@
 package dns
 
-import "strings"
+import (
+	"strings"
+)
 
 func Decode(b []byte) (*Message, error) {
 	buf := newDnsBuffer(b)
@@ -74,10 +76,10 @@ func decodeQuestion(buf *dnsBuffer, question *Question) error {
 	return nil
 }
 
-func decodeResourceRecord(buf *dnsBuffer, rr *RR) error {
+func decodeResourceRecord(buf *dnsBuffer) (RR, error) {
 	name, err := decodeName(buf)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// TODO: error checking
@@ -85,22 +87,42 @@ func decodeResourceRecord(buf *dnsBuffer, rr *RR) error {
 	class := buf.ReadU16()
 	ttl := buf.ReadU32()
 	dlen := buf.ReadU16()
-	data := buf.Read(int(dlen))
 
-	rr.Name = name
-	rr.Type = ty
-	rr.Class = class
-	rr.TTL = ttl
-	rr.Data = data
+	header := RR_Header{
+		Name:  name,
+		Type:  ty,
+		Class: class,
+		TTL:   ttl,
+	}
 
-	return nil
+	switch ty {
+	case TYPE_A:
+		data := buf.Read(int(dlen))
+		return &RR_A{RR_Header: header, Addr: [4]byte{data[3], data[2], data[1], data[0]}}, nil
+	case TYPE_AAAA:
+		data := buf.Read(int(dlen))
+		rr := RR_AAAA{RR_Header: header}
+		copy(rr.Addr[:], data)
+		return &rr, nil
+	case TYPE_NS:
+		nsname, err := decodeName(buf)
+		if err != nil {
+			return nil, err
+		}
+		return &RR_NS{RR_Header: header, Nameserver: nsname}, nil
+	default:
+		data := buf.Read(int(dlen))
+		return &RR_Unknown{RR_Header: header, Data: data}, nil
+	}
 }
 
 func decodeResourceRecords(buf *dnsBuffer, rrs []RR) error {
 	for idx := range rrs {
-		if err := decodeResourceRecord(buf, &rrs[idx]); err != nil {
+		rr, err := decodeResourceRecord(buf)
+		if err != nil {
 			return err
 		}
+		rrs[idx] = rr
 	}
 	return nil
 }
@@ -128,7 +150,9 @@ func decodeName(buf *dnsBuffer) (string, error) {
 		if isPtr {
 			lhs := uint16(llen)
 			rhs := uint16(buf.buffer[offset+1])
-			endOffset = offset + 2
+			if endOffset == -1 {
+				endOffset = offset + 2
+			}
 			offset = int(lhs<<8 | rhs)
 		} else {
 			label := string(buf.buffer[offset+1 : offset+1+int(llen)])

@@ -55,26 +55,28 @@ func encodeQuestions(buf *dnsBuffer, qs []Question) {
 	}
 }
 
-func encodeResourceRecord(buf *dnsBuffer, rr *RR) error {
-	if err := encodeName(buf, rr.Name); err != nil {
+func encodeResourceRecord(buf *dnsBuffer, rr RR) error {
+	header := rr.Header()
+	if err := encodeName(buf, header.Name); err != nil {
 		return err
 	}
-	buf.WriteU16(rr.Type)
-	buf.WriteU16(rr.Class)
-	buf.WriteU32(rr.TTL)
+	buf.WriteU16(header.Type)
+	buf.WriteU16(header.Class)
+	buf.WriteU32(header.TTL)
+	rr.writeData(buf) // TODO: handle error
 
-	if len(rr.Data) > 0xFFFF {
-		return ErrResourceRecordDataToLarge
-	}
-	buf.WriteU16(uint16(len(rr.Data)))
-	buf.Write(rr.Data)
+	// if len(rr.Data) > 0xFFFF {
+	// 	return ErrResourceRecordDataToLarge
+	// }
+	// buf.WriteU16(uint16(len(rr.Data)))
+	// buf.Write(rr.Data)
 
 	return nil
 }
 
 func encodeResourceRecords(buf *dnsBuffer, rrs []RR) {
 	for _, rr := range rrs {
-		encodeResourceRecord(buf, &rr)
+		encodeResourceRecord(buf, rr)
 	}
 }
 

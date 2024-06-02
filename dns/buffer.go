@@ -14,6 +14,14 @@ func newDnsBuffer(buf []byte) *dnsBuffer {
 	}
 }
 
+func (r *dnsBuffer) Position() int {
+	return r.cursor
+}
+
+func (r *dnsBuffer) SetPosition(position int) {
+	r.cursor = position
+}
+
 func (r *dnsBuffer) Remain() int {
 	return len(r.buffer) - r.cursor
 }

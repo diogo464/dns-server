@@ -38,12 +38,34 @@ const (
 const (
 	_ uint16 = iota
 	TYPE_A
+	TYPE_NS   // Authoritative name server
+	TYPE_AAAA = 28
+	TYPE_ANY  = 255
 )
+
+var TypeString map[uint16]string = map[uint16]string{
+	TYPE_A:    "A",
+	TYPE_NS:   "NS",
+	TYPE_AAAA: "AAAA",
+}
 
 const (
 	_ uint16 = iota
 	CLASS_IN
 )
+
+var ClassString map[uint16]string = map[uint16]string{
+	CLASS_IN: "IN",
+}
+
+type sockAddr struct {
+	Ip   net.IP
+	Port uint16
+}
+
+func (addr *sockAddr) String() string {
+	return fmt.Sprintf("[%v]:%v", addr.Ip, addr.Port)
+}
 
 type Header struct {
 	Id                 uint16
@@ -60,18 +82,31 @@ type Header struct {
 	AdditionalCount    uint16
 }
 
+func (h *Header) String() string {
+	return fmt.Sprintf("ID: %v\tResponse: %v\tOpcode: %v\nAA: %v TC: %v RD: %v RA: %v\nQDCOUNT: %v\tANCOUNT: %v\tNSCOUNT: %v\tARCOUNT: %v", h.Id, h.Response, h.Opcode, h.Authoritative, h.Truncated, h.RecursionDesired, h.RecursionAvailable, h.QuestionCount, h.AnswerCount, h.AuthoritativeCount, h.AdditionalCount)
+}
+
 type Question struct {
 	Name  string
 	Type  uint16
 	Class uint16
 }
 
-type RR struct {
+func (q *Question) String() string {
+	return fmt.Sprintf("%v\t%v\t%v", q.Name, classToString(q.Class), typeToString(q.Type))
+}
+
+type RR interface {
+	fmt.Stringer
+	Header() RR_Header
+	writeData(buf *dnsBuffer)
+}
+
+type RR_Header struct {
 	Name  string
 	Type  uint16
 	Class uint16
 	TTL   uint32
-	Data  []byte
 }
 
 type Message struct {
@@ -82,29 +117,134 @@ type Message struct {
 	Additional []RR
 }
 
+func (m *Message) String() string {
+	str := ""
+	str += m.Header.String() + "\n"
+	for _, q := range m.Questions {
+		str += q.String() + "\n"
+	}
+	str += "\n;; Answer\n"
+	for _, r := range m.Answers {
+		str += r.String() + "\n"
+	}
+	str += "\n;; Authority\n"
+	for _, r := range m.Authority {
+		str += r.String() + "\n"
+	}
+	str += "\n;; Additional\n"
+	for _, r := range m.Additional {
+		str += r.String() + "\n"
+	}
+	return str
+}
+
+var _ RR = (*RR_Unknown)(nil)
+
+type RR_Unknown struct {
+	RR_Header
+	Data []byte
+}
+
+// Header implements RR.
+func (r *RR_Unknown) Header() RR_Header {
+	return r.RR_Header
+}
+
+// writeData implements RR.
+func (r *RR_Unknown) writeData(buf *dnsBuffer) {
+	buf.WriteU16(uint16(len(r.Data)))
+	buf.Write(r.Data)
+}
+
+// String implements RR.
+func (r *RR_Unknown) String() string {
+	return resourceRecordToString(&r.RR_Header, fmt.Sprintf("[unknown %v bytes]", len(r.Data)))
+}
+
+var _ RR = (*RR_A)(nil)
+
 type RR_A struct {
+	RR_Header
 	Addr [4]byte
 }
 
+// String implements RR.
+func (rr *RR_A) String() string {
+	return resourceRecordToString(&rr.RR_Header, fmt.Sprintf("%v.%v.%v.%v", rr.Addr[3], rr.Addr[2], rr.Addr[1], rr.Addr[0]))
+}
+
+// Header implements RR.
+func (rr *RR_A) Header() RR_Header {
+	return rr.RR_Header
+}
+
+// writeData implements RR.
+func (rr *RR_A) writeData(buf *dnsBuffer) {
+	buf.WriteU16(4)
+	buf.Write(rr.Addr[:])
+}
+
 func (rr *RR_A) ToNetIp() net.IP {
-	return net.IPv4(rr.Addr[0], rr.Addr[1], rr.Addr[2], rr.Addr[3])
+	return net.IPv4(rr.Addr[3], rr.Addr[2], rr.Addr[1], rr.Addr[0])
 }
 
-func (rr *RR_A) ToData() []byte {
-	return rr.Addr[:]
+var _ RR = (*RR_AAAA)(nil)
+
+type RR_AAAA struct {
+	RR_Header
+	Addr [16]byte
 }
 
-func (rr *RR) EncodeA(v RR_A) {
-	rr.Type = TYPE_A
-	rr.Data = v.ToData()
+func (rr *RR_AAAA) ToNetIp() net.IP {
+	return net.IP(rr.Addr[:])
 }
 
-func (rr *RR) DecodeA() (RR_A, error) {
-	if rr.Type != TYPE_A {
-		return RR_A{}, ErrInvalidRRType
-	}
-	if len(rr.Data) != net.IPv4len {
-		return RR_A{}, ErrInvalidRRData
-	}
-	return RR_A{Addr: [4]byte{rr.Data[0], rr.Data[1], rr.Data[2], rr.Data[3]}}, nil
+// Header implements RR.
+func (r *RR_AAAA) Header() RR_Header {
+	return r.RR_Header
+}
+
+// String implements RR.
+func (r *RR_AAAA) String() string {
+	return resourceRecordToString(&r.RR_Header, net.IP.To16(r.ToNetIp()).String())
+}
+
+// writeData implements RR.
+func (r *RR_AAAA) writeData(buf *dnsBuffer) {
+	buf.WriteU16(16)
+	buf.Write(r.Addr[:])
+}
+
+var _ RR = (*RR_NS)(nil)
+
+type RR_NS struct {
+	RR_Header
+	Nameserver string
+}
+
+// Header implements RR.
+func (r *RR_NS) Header() RR_Header {
+	return r.RR_Header
+}
+
+// writeData implements RR.
+func (r *RR_NS) writeData(buf *dnsBuffer) {
+	startPos := buf.Position()
+	buf.WriteU16(0)
+	encodeName(buf, r.Nameserver) // TODO: handle error
+	endPos := buf.Position()
+
+	nameLen := uint16(endPos - startPos - 2)
+	buf.SetPosition(startPos)
+	buf.WriteU16(nameLen)
+	buf.SetPosition(endPos)
+}
+
+// String implements RR.
+func (r *RR_NS) String() string {
+	return resourceRecordToString(&r.RR_Header, r.Nameserver)
+}
+
+func resourceRecordToString(header *RR_Header, extra string) string {
+	return fmt.Sprintf("%v\t%v\t%v\t%v\t%v", header.Name, header.TTL, classToString(header.Class), typeToString(header.Type), extra)
 }
