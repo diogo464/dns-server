@@ -12,6 +12,7 @@ var ErrInvalidRRType = fmt.Errorf("invalid RR type")
 var ErrInvalidRRData = fmt.Errorf("invalid RR data")
 
 const MAX_LABEL_SIZE = 63
+const MAX_UDP_MESSAGE_SIZE = 512
 
 const (
 	OPCODE_QUERY uint8 = iota
@@ -21,7 +22,7 @@ const (
 
 const (
 	// No error condition
-	RCODE_NO_ERROR = iota
+	RCODE_NO_ERROR uint8 = iota
 	// The name server was unable to interpret the query
 	RCODE_FORMAT_ERROR
 	// The name server was unable to process this query due to a problem with the name server

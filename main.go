@@ -24,12 +24,14 @@ func main() {
 		slog.SetLogLoggerLevel(slog.LevelDebug)
 	}
 
-	rrs, err := dns.Resolve(os.Args[1], dns.TYPE_A)
+	server, err := dns.NewServer(dns.WithUdpListener("0.0.0.0:2053"))
 	if err != nil {
-		panic(err)
+		slog.Error("failed to create server", "error", err)
+		os.Exit(1)
 	}
 
-	for _, rr := range rrs {
-		fmt.Println(rr)
+	if err := server.Run(); err != nil {
+		slog.Error("failed to run server", "error", err)
+		os.Exit(1)
 	}
 }

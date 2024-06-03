@@ -85,3 +85,11 @@ func classToString(c uint16) string {
 		return strconv.FormatInt(int64(c), 10)
 	}
 }
+
+func createErrorResponseMessage(request *Message, code uint8) *Message {
+	message := &Message{}
+	message.Header.Id = request.Header.Id
+	message.Header.Response = true
+	message.Header.ResponseCode = code
+	return message
+}
