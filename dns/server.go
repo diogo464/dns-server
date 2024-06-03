@@ -220,13 +220,15 @@ func (s *Server) udpReader(conn net.PacketConn) {
 }
 
 func (s *Server) udpWriter(conn net.PacketConn, receiver <-chan messageWithAddr) {
-	select {
-	case <-s.ctx.Done():
-		return
-	case msg := <-receiver:
-		encoded := Encode(msg.message)
-		if _, err := conn.WriteTo(encoded, msg.addr); err != nil {
-			slog.Warn("failed to write udp response", "error", err, "remote", msg.addr)
+	for {
+		select {
+		case <-s.ctx.Done():
+			return
+		case msg := <-receiver:
+			encoded := Encode(msg.message)
+			if _, err := conn.WriteTo(encoded, msg.addr); err != nil {
+				slog.Warn("failed to write udp response", "error", err, "remote", msg.addr)
+			}
 		}
 	}
 }

@@ -17,6 +17,7 @@ type worker struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	chann  chan workerJob
+	cache  *workerCache
 }
 
 func newWorker() *worker {
@@ -26,6 +27,7 @@ func newWorker() *worker {
 		ctx:    ctx,
 		cancel: cancel,
 		chann:  chann,
+		cache:  newWorkerCache(),
 	}
 }
 
@@ -73,10 +75,15 @@ func (w *worker) process(job workerJob) *Message {
 		return createErrorResponseMessage(msg, RCODE_NOT_IMPLEMENTED)
 	}
 
-	rrs, err := Resolve(question.Name, question.Type)
-	if err != nil {
-		slog.Warn("failed to resolve name", "error", err, "name", question.Name)
-		return createErrorResponseMessage(msg, RCODE_SERVER_FAILURE)
+	rrs, resolve := w.cache.get(question.Name, question.Type)
+	if resolve {
+		resolvedRRs, err := Resolve(question.Name, question.Type)
+		if err != nil {
+			slog.Warn("failed to resolve name", "error", err, "name", question.Name)
+			return createErrorResponseMessage(msg, RCODE_SERVER_FAILURE)
+		}
+		w.cache.put(question.Name, resolvedRRs, question.Type)
+		rrs = resolvedRRs
 	}
 
 	response := &Message{}
@@ -86,6 +93,8 @@ func (w *worker) process(job workerJob) *Message {
 	response.Header.ResponseCode = RCODE_NO_ERROR
 	response.Header.AnswerCount = uint16(len(rrs))
 	response.Answers = rrs
+	fmt.Println("response")
+	fmt.Println(response)
 
 	return response
 }
