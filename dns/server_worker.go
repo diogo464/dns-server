@@ -58,6 +58,11 @@ func (w *worker) process(job workerJob) *Message {
 		return createErrorResponseMessage(msg, RCODE_FORMAT_ERROR)
 	}
 
+	if msg.Header.Opcode != OPCODE_QUERY {
+		slog.Warn("received message with opcode != OPCODE_QUERY", "opcode", msg.Header.Opcode)
+		return createErrorResponseMessage(msg, RCODE_NOT_IMPLEMENTED)
+	}
+
 	if msg.Header.QuestionCount != 1 {
 		slog.Warn("received message with incorrect number of questions", "questions", msg.Header.QuestionCount)
 		return createErrorResponseMessage(msg, RCODE_FORMAT_ERROR)
