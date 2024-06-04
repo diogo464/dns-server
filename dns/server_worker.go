@@ -95,6 +95,7 @@ func (w *worker) process(job workerJob) *Message {
 	response.Header.Id = msg.Header.Id
 	response.Header.Response = true
 	response.Header.RecursionAvailable = true
+	response.Header.RecursionDesired = msg.Header.RecursionDesired
 	response.Header.ResponseCode = RCODE_NO_ERROR
 	response.Header.AnswerCount = uint16(len(rrs))
 	response.Answers = rrs
