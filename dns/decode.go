@@ -99,17 +99,130 @@ func decodeResourceRecord(buf *dnsBuffer) (RR, error) {
 	case TYPE_A:
 		data := buf.Read(int(dlen))
 		return &RR_A{RR_Header: header, Addr: [4]byte{data[3], data[2], data[1], data[0]}}, nil
-	case TYPE_AAAA:
-		data := buf.Read(int(dlen))
-		rr := RR_AAAA{RR_Header: header}
-		copy(rr.Addr[:], data)
-		return &rr, nil
 	case TYPE_NS:
 		nsname, err := decodeName(buf)
 		if err != nil {
 			return nil, err
 		}
 		return &RR_NS{RR_Header: header, Nameserver: nsname}, nil
+	case TYPE_MD:
+		agent, err := decodeName(buf)
+		if err != nil {
+			return nil, err
+		}
+		return &RR_MD{RR_Header: header, MailAgentDomain: agent}, nil
+	case TYPE_MF:
+		agent, err := decodeName(buf)
+		if err != nil {
+			return nil, err
+		}
+		return &RR_MF{RR_Header: header, MailAgentDomain: agent}, nil
+	case TYPE_CNAME:
+		name, err := decodeName(buf)
+		if err != nil {
+			return nil, err
+		}
+		return &RR_CNAME{RR_Header: header, CNAME: name}, nil
+	case TYPE_SOA:
+		mname, err := decodeName(buf)
+		if err != nil {
+			return nil, err
+		}
+		rname, err := decodeName(buf)
+		if err != nil {
+			return nil, err
+		}
+		serial := buf.ReadU32()
+		refresh := buf.ReadU32()
+		retry := buf.ReadU32()
+		expire := buf.ReadU32()
+		minimum := buf.ReadU32()
+		return &RR_SOA{
+			RR_Header: header,
+			MNAME:     mname,
+			RNAME:     rname,
+			SERIAL:    serial,
+			REFRESH:   refresh,
+			RETRY:     retry,
+			EXPIRE:    expire,
+			MINIMUM:   minimum,
+		}, nil
+	case TYPE_MB:
+		domain, err := decodeName(buf)
+		if err != nil {
+			return nil, err
+		}
+		return &RR_MB{RR_Header: header, MailboxDomain: domain}, nil
+	case TYPE_MG:
+		domain, err := decodeName(buf)
+		if err != nil {
+			return nil, err
+		}
+		return &RR_MG{RR_Header: header, MailGroupDomain: domain}, nil
+	case TYPE_MR:
+		name, err := decodeName(buf)
+		if err != nil {
+			return nil, err
+		}
+		return &RR_MR{RR_Header: header, NewName: name}, nil
+	case TYPE_NULL:
+		data := buf.Read(int(dlen))
+		return &RR_NULL{RR_Header: header, Data: data}, nil
+	case TYPE_WKS:
+		address := buf.Read(4)
+		protocol := buf.ReadU8()
+		services := []uint8(buf.Read(int(dlen)))
+		return &RR_WKS{RR_Header: header, Address: [4]byte(address), Protocol: protocol, Services: services}, nil
+	case TYPE_PTR:
+		name, err := decodeName(buf)
+		if err != nil {
+			return nil, err
+		}
+		return &RR_PTR{RR_Header: header, PTRDNAME: name}, nil
+	case TYPE_HINFO:
+		cpu, err := decodeCharacterString(buf)
+		if err != nil {
+			return nil, err
+		}
+		os, err := decodeCharacterString(buf)
+		if err != nil {
+			return nil, err
+		}
+		return &RR_HINFO{RR_Header: header, CPU: cpu, OS: os}, nil
+	case TYPE_MINFO:
+		rmailbx, err := decodeName(buf)
+		if err != nil {
+			return nil, err
+		}
+		emailbx, err := decodeName(buf)
+		if err != nil {
+			return nil, err
+		}
+		return &RR_MINFO{RR_Header: header, RMAILBX: rmailbx, EMAILBX: emailbx}, nil
+	case TYPE_MX:
+		preference := buf.ReadU16()
+		exchange, err := decodeName(buf)
+		if err != nil {
+			return nil, err
+		}
+		return &RR_MX{RR_Header: header, Preference: preference, Exchange: exchange}, nil
+	case TYPE_TXT:
+		data, err := decodeCharacterString(buf)
+		if err != nil {
+			return nil, err
+		}
+		return &RR_TXT{RR_Header: header, Data: data}, nil
+	case TYPE_AXFR:
+		return nil, ErrNotImplemented
+	case TYPE_MAILB:
+		return nil, ErrNotImplemented
+	case TYPE_MAILA:
+		return nil, ErrNotImplemented
+	case TYPE_AAAA:
+		data := buf.Read(int(dlen))
+		rr := RR_AAAA{RR_Header: header}
+		copy(rr.Addr[:], data)
+		return &rr, nil
 	default:
 		data := buf.Read(int(dlen))
 		return &RR_Unknown{RR_Header: header, Data: data}, nil
@@ -132,6 +245,8 @@ func decodeName(buf *dnsBuffer) (string, error) {
 	offset := buf.cursor
 	name := ""
 	endOffset := -1
+
+	// TODO: check length (characters + length octet) is not greater than 255
 
 	for {
 		llen := uint8(buf.buffer[offset])
@@ -164,4 +279,10 @@ func decodeName(buf *dnsBuffer) (string, error) {
 	name = strings.TrimRight(name, ".")
 
 	return name, nil
+}
+
+func decodeCharacterString(buf *dnsBuffer) (string, error) {
+	l := buf.ReadU8()
+	b := buf.Read(int(l))
+	return string(b), nil
 }

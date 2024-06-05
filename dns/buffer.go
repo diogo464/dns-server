@@ -32,6 +32,12 @@ func (r *dnsBuffer) Read(n int) []byte {
 	return v
 }
 
+func (r *dnsBuffer) ReadU8() uint8 {
+	v := uint8(r.buffer[r.cursor])
+	r.cursor += 1
+	return v
+}
+
 func (r *dnsBuffer) ReadU16() uint16 {
 	v := binary.BigEndian.Uint16([]byte{r.buffer[r.cursor], r.buffer[r.cursor+1]})
 	r.cursor += 2

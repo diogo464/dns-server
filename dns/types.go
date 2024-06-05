@@ -7,9 +7,12 @@ import (
 
 var ErrInsufficientData = fmt.Errorf("insufficient data while decoding message")
 var ErrLabelToLarge = fmt.Errorf("label length exceeds allowed 63 bytes")
+var ErrCharacterStringToLarge = fmt.Errorf("character string exceeds allowed 255 bytes")
+var ErrRDataToLarge = fmt.Errorf("rdata field exceeds allowed size")
 var ErrResourceRecordDataToLarge = fmt.Errorf("resource record data is to large")
 var ErrInvalidRRType = fmt.Errorf("invalid RR type")
 var ErrInvalidRRData = fmt.Errorf("invalid RR data")
+var ErrNotImplemented = fmt.Errorf("not implemented")
 
 const MAX_LABEL_SIZE = 63
 const MAX_UDP_MESSAGE_SIZE = 512
@@ -39,7 +42,24 @@ const (
 const (
 	_ uint16 = iota
 	TYPE_A
-	TYPE_NS   // Authoritative name server
+	TYPE_NS // Authoritative name server
+	TYPE_MD
+	TYPE_MF
+	TYPE_CNAME
+	TYPE_SOA
+	TYPE_MB
+	TYPE_MG
+	TYPE_MR
+	TYPE_NULL
+	TYPE_WKS
+	TYPE_PTR
+	TYPE_HINFO
+	TYPE_MINFO
+	TYPE_MX
+	TYPE_TXT
+	TYPE_AXFR
+	TYPE_MAILB
+	TYPE_MAILA
 	TYPE_AAAA = 28
 	TYPE_ANY  = 255
 )
@@ -53,10 +73,20 @@ var TypeString map[uint16]string = map[uint16]string{
 const (
 	_ uint16 = iota
 	CLASS_IN
+	CLASS_CS
+	CLASS_CH
+	CLASS_HS
+
+	QCLASS_ANY = 255
 )
 
 var ClassString map[uint16]string = map[uint16]string{
 	CLASS_IN: "IN",
+	CLASS_CS: "CS",
+	CLASS_CH: "CH",
+	CLASS_HS: "HS",
+
+	QCLASS_ANY: "ANY",
 }
 
 type sockAddr struct {
@@ -246,6 +276,355 @@ func (r *RR_NS) String() string {
 	return resourceRecordToString(&r.RR_Header, r.Nameserver)
 }
 
-func resourceRecordToString(header *RR_Header, extra string) string {
-	return fmt.Sprintf("%v\t%v\t%v\t%v\t%v", header.Name, header.TTL, classToString(header.Class), typeToString(header.Type), extra)
+var _ RR = (*RR_CNAME)(nil)
+
+type RR_CNAME struct {
+	RR_Header
+	CNAME string
+}
+
+// Header implements RR.
+func (r *RR_CNAME) Header() RR_Header {
+	return r.RR_Header
+}
+
+// String implements RR.
+func (r *RR_CNAME) String() string {
+	return resourceRecordToString(&r.RR_Header, r.Name)
+}
+
+// writeData implements RR.
+func (r *RR_CNAME) writeData(buf *dnsBuffer) {
+	encodeName(buf, r.Name)
+}
+
+var _ RR = (*RR_HINFO)(nil)
+
+type RR_HINFO struct {
+	RR_Header
+	CPU string
+	OS  string
+}
+
+// Header implements RR.
+func (r *RR_HINFO) Header() RR_Header {
+	return r.RR_Header
+}
+
+// String implements RR.
+func (r *RR_HINFO) String() string {
+	return resourceRecordToString(&r.RR_Header, fmt.Sprintf("'%v' '%v'", r.CPU, r.OS))
+}
+
+// writeData implements RR.
+func (r *RR_HINFO) writeData(buf *dnsBuffer) {
+	// TODO: handle errors
+	encodeCharacterString(buf, r.CPU)
+	encodeCharacterString(buf, r.OS)
+}
+
+var _ RR = (*RR_MB)(nil)
+
+type RR_MB struct {
+	RR_Header
+	MailboxDomain string
+}
+
+// Header implements RR.
+func (r *RR_MB) Header() RR_Header {
+	return r.RR_Header
+}
+
+// String implements RR.
+func (r *RR_MB) String() string {
+	return resourceRecordToString(&r.RR_Header, r.MailboxDomain)
+}
+
+// writeData implements RR.
+func (r *RR_MB) writeData(buf *dnsBuffer) {
+	encodeName(buf, r.MailboxDomain)
+}
+
+var _ RR = (*RR_MD)(nil)
+
+type RR_MD struct {
+	RR_Header
+	MailAgentDomain string
+}
+
+// Header implements RR.
+func (r *RR_MD) Header() RR_Header {
+	return r.RR_Header
+}
+
+// String implements RR.
+func (r *RR_MD) String() string {
+	return resourceRecordToString(&r.RR_Header, r.MailAgentDomain)
+}
+
+// writeData implements RR.
+func (r *RR_MD) writeData(buf *dnsBuffer) {
+	// TODO: handle error
+	encodeName(buf, r.MailAgentDomain)
+}
+
+var _ RR = (*RR_MF)(nil)
+
+type RR_MF struct {
+	RR_Header
+	MailAgentDomain string
+}
+
+// Header implements RR.
+func (r *RR_MF) Header() RR_Header {
+	return r.RR_Header
+}
+
+// String implements RR.
+func (r *RR_MF) String() string {
+	return resourceRecordToString(&r.RR_Header, r.MailAgentDomain)
+}
+
+// writeData implements RR.
+func (r *RR_MF) writeData(buf *dnsBuffer) {
+	// TODO: handle error
+	encodeName(buf, r.MailAgentDomain)
+}
+
+var _ RR = (*RR_MG)(nil)
+
+type RR_MG struct {
+	RR_Header
+	MailGroupDomain string
+}
+
+// Header implements RR.
+func (r *RR_MG) Header() RR_Header {
+	return r.RR_Header
+}
+
+// String implements RR.
+func (r *RR_MG) String() string {
+	return resourceRecordToString(&r.RR_Header, r.MailGroupDomain)
+}
+
+// writeData implements RR.
+func (r *RR_MG) writeData(buf *dnsBuffer) {
+	encodeName(buf, r.MailGroupDomain)
+}
+
+var _ RR = (*RR_MINFO)(nil)
+
+type RR_MINFO struct {
+	RR_Header
+	RMAILBX string
+	EMAILBX string
+}
+
+// Header implements RR.
+func (r *RR_MINFO) Header() RR_Header {
+	return r.RR_Header
+}
+
+// String implements RR.
+func (r *RR_MINFO) String() string {
+	return resourceRecordToString(&r.RR_Header, fmt.Sprintf("%v %v", r.RMAILBX, r.EMAILBX))
+}
+
+// writeData implements RR.
+func (r *RR_MINFO) writeData(buf *dnsBuffer) {
+	// TODO: handle errors
+	encodeName(buf, r.RMAILBX)
+	encodeName(buf, r.EMAILBX)
+}
+
+var _ RR = (*RR_MR)(nil)
+
+type RR_MR struct {
+	RR_Header
+	NewName string
+}
+
+// Header implements RR.
+func (r *RR_MR) Header() RR_Header {
+	return r.RR_Header
+}
+
+// String implements RR.
+func (r *RR_MR) String() string {
+	return resourceRecordToString(&r.RR_Header, r.NewName)
+}
+
+// writeData implements RR.
+func (r *RR_MR) writeData(buf *dnsBuffer) {
+	// TODO: handle error
+	encodeName(buf, r.NewName)
+}
+
+var _ RR = (*RR_MX)(nil)
+
+type RR_MX struct {
+	RR_Header
+	Preference uint16
+	Exchange   string
+}
+
+// Header implements RR.
+func (r *RR_MX) Header() RR_Header {
+	return r.RR_Header
+}
+
+// String implements RR.
+func (r *RR_MX) String() string {
+	return resourceRecordToString(&r.RR_Header, fmt.Sprintf("%v %v", r.Preference, r.Exchange))
+}
+
+// writeData implements RR.
+func (r *RR_MX) writeData(buf *dnsBuffer) {
+	buf.WriteU16(r.Preference)
+	encodeName(buf, r.Exchange)
+}
+
+var _ RR = (*RR_NULL)(nil)
+
+type RR_NULL struct {
+	RR_Header
+	Data []byte
+}
+
+// Header implements RR.
+func (r *RR_NULL) Header() RR_Header {
+	return r.RR_Header
+}
+
+// String implements RR.
+func (r *RR_NULL) String() string {
+	return resourceRecordToString(&r.RR_Header, fmt.Sprintf("[%v bytes]", len(r.Data)))
+}
+
+// writeData implements RR.
+func (r *RR_NULL) writeData(buf *dnsBuffer) {
+	if len(r.Data) > 65535 {
+		// TODO: handle error
+		// return ErrRDataToLarge
+	}
+	buf.Write(r.Data)
+}
+
+var _ RR = (*RR_PTR)(nil)
+
+type RR_PTR struct {
+	RR_Header
+	PTRDNAME string
+}
+
+// Header implements RR.
+func (r *RR_PTR) Header() RR_Header {
+	return r.RR_Header
+}
+
+// String implements RR.
+func (r *RR_PTR) String() string {
+	return resourceRecordToString(&r.RR_Header, r.PTRDNAME)
+}
+
+// writeData implements RR.
+func (r *RR_PTR) writeData(buf *dnsBuffer) {
+	// TODO: handle error
+	encodeName(buf, r.PTRDNAME)
+}
+
+var _ RR = (*RR_SOA)(nil)
+
+type RR_SOA struct {
+	RR_Header
+	MNAME   string
+	RNAME   string
+	SERIAL  uint32
+	REFRESH uint32
+	RETRY   uint32
+	EXPIRE  uint32
+	MINIMUM uint32
+}
+
+// Header implements RR.
+func (r *RR_SOA) Header() RR_Header {
+	return r.RR_Header
+}
+
+// String implements RR.
+func (r *RR_SOA) String() string {
+	return resourceRecordToString(&r.RR_Header, r.MNAME, r.RNAME, r.SERIAL, r.REFRESH, r.RETRY, r.EXPIRE, r.MINIMUM)
+}
+
+// writeData implements RR.
+func (r *RR_SOA) writeData(buf *dnsBuffer) {
+	// TODO: handle errors
+	encodeName(buf, r.MNAME)
+	encodeName(buf, r.RNAME)
+	buf.WriteU32(r.SERIAL)
+	buf.WriteU32(r.REFRESH)
+	buf.WriteU32(r.RETRY)
+	buf.WriteU32(r.EXPIRE)
+	buf.WriteU32(r.MINIMUM)
+}
+
+var _ RR = (*RR_TXT)(nil)
+
+type RR_TXT struct {
+	RR_Header
+	Data string
+}
+
+// Header implements RR.
+func (r *RR_TXT) Header() RR_Header {
+	return r.RR_Header
+}
+
+// String implements RR.
+func (r *RR_TXT) String() string {
+	return resourceRecordToString(&r.RR_Header, r.Data)
+}
+
+// writeData implements RR.
+func (r *RR_TXT) writeData(buf *dnsBuffer) {
+	// TODO: handle error
+	// TODO: RFC1035 says one or more character strings, this implementation might be incorrect.
+	encodeCharacterString(buf, r.Data)
+}
+
+var _ RR = (*RR_WKS)(nil)
+
+type RR_WKS struct {
+	RR_Header
+	Address  [4]byte
+	Protocol uint8
+	Services []uint8
+}
+
+// Header implements RR.
+func (r *RR_WKS) Header() RR_Header {
+	return r.RR_Header
+}
+
+// String implements RR.
+func (r *RR_WKS) String() string {
+	return resourceRecordToString(&r.RR_Header, fmt.Sprintf("%v.%v.%v.%v", r.Address[3], r.Address[2], r.Address[1], r.Address[0]), r.Protocol)
+}
+
+// writeData implements RR.
+func (r *RR_WKS) writeData(buf *dnsBuffer) {
+	buf.Write(r.Address[:])
+	buf.WriteU8(r.Protocol)
+	for _, v := range r.Services {
+		buf.WriteU8(v)
+	}
+}
+
+func resourceRecordToString(header *RR_Header, extra ...any) string {
+	v := fmt.Sprintf("%v\t%v\t%v\t%v", header.Name, header.TTL, classToString(header.Class), typeToString(header.Type))
+	for _, x := range extra {
+		v += "\t" + fmt.Sprint(x)
+	}
+	return v
 }

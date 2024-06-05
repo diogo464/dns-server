@@ -101,3 +101,12 @@ func encodeName(buf *dnsBuffer, name string) error {
 	encodeLabel(buf, "")
 	return nil
 }
+
+func encodeCharacterString(buf *dnsBuffer, v string) error {
+	if len(v) > 255 {
+		return ErrCharacterStringToLarge
+	}
+	buf.WriteU8(uint8(len(v)))
+	buf.Write([]byte(v))
+	return nil
+}
