@@ -219,7 +219,7 @@ func decodeResourceRecord(buf *dnsBuffer) (RR, error) {
 		return RR{}, ErrNotImplemented
 	case TYPE_AAAA:
 		data := buf.Read(int(dlen))
-		rrdata := &RR_AAAA{RR_Header: header}
+		rrdata := &RR_AAAA{Addr: [16]byte(data)}
 		copy(rrdata.Addr[:], data)
 		return RR{RR_Header: header, Data: rrdata}, nil
 	default:
