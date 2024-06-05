@@ -65,9 +65,26 @@ const (
 )
 
 var TypeString map[uint16]string = map[uint16]string{
-	TYPE_A:    "A",
-	TYPE_NS:   "NS",
-	TYPE_AAAA: "AAAA",
+	TYPE_A:     "A",
+	TYPE_MD:    "MD",
+	TYPE_MF:    "MF",
+	TYPE_CNAME: "CNAME",
+	TYPE_SOA:   "SOA",
+	TYPE_MB:    "MB",
+	TYPE_MG:    "MG",
+	TYPE_MR:    "MR",
+	TYPE_NULL:  "NULL",
+	TYPE_WKS:   "WKS",
+	TYPE_PTR:   "PTR",
+	TYPE_HINFO: "HINFO",
+	TYPE_MINFO: "MINFO",
+	TYPE_MX:    "MX",
+	TYPE_TXT:   "TXT",
+	TYPE_AXFR:  "AXFR",
+	TYPE_MAILB: "MAILB",
+	TYPE_MAILA: "MAILA",
+	TYPE_NS:    "NS",
+	TYPE_AAAA:  "AAAA",
 }
 
 const (
