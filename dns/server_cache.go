@@ -5,9 +5,10 @@ import (
 	"time"
 )
 
+// TODO: handle TYPE_ANY
+
 type workerCacheEntry struct {
 	rr        RR
-	header    RR_Header
 	timestamp time.Time
 }
 
@@ -32,11 +33,11 @@ func (wc *workerCache) get(name string, ty uint16) ([]RR, bool) {
 	modified := false
 	for idx := 0; idx < len(entries); {
 		entry := &entries[idx]
-		if entry.header.Type != ty {
+		if entry.rr.Type != ty {
 			idx += 1
 			continue
 		}
-		if uint32(time.Since(entry.timestamp).Seconds()) >= entry.header.TTL {
+		if uint32(time.Since(entry.timestamp).Seconds()) >= entry.rr.TTL {
 			entries[idx] = entries[len(entries)-1]
 			entries = entries[:len(entries)-1]
 			modified = true
@@ -54,7 +55,7 @@ func (wc *workerCache) get(name string, ty uint16) ([]RR, bool) {
 func (wc *workerCache) put(name string, rrs []RR, ty uint16) {
 	if entries, ok := wc.entries[name]; ok {
 		wc.entries[name] = slices.DeleteFunc(entries, func(entry workerCacheEntry) bool {
-			return entry.header.Type == ty
+			return entry.rr.Type == ty
 		})
 	}
 
@@ -62,7 +63,6 @@ func (wc *workerCache) put(name string, rrs []RR, ty uint16) {
 	for _, rr := range rrs {
 		entries = append(entries, workerCacheEntry{
 			rr:        rr,
-			header:    rr.Header(),
 			timestamp: time.Now(),
 		})
 	}

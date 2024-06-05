@@ -7,6 +7,8 @@ import (
 	"net"
 )
 
+// TODO: follow CNAMEs
+
 func Resolve(name string, ty uint16) ([]RR, error) {
 	nextServers := []sockAddr{}
 	for _, ip := range RootServersIpv4 {
@@ -32,7 +34,7 @@ func Resolve(name string, ty uint16) ([]RR, error) {
 
 		authorities := make(map[string]struct{})
 		for _, rr := range response.Authority {
-			rr_ns, ok := rr.(*RR_NS)
+			rr_ns, ok := rr.Data.(*RR_NS)
 			if !ok {
 				continue
 			}
@@ -47,7 +49,7 @@ func Resolve(name string, ty uint16) ([]RR, error) {
 					Ip:   ip,
 					Port: 53,
 				})
-				delete(authorities, rr.Header().Name)
+				delete(authorities, rr.Name)
 			}
 		}
 

@@ -144,9 +144,17 @@ func (q *Question) String() string {
 	return fmt.Sprintf("%v\t%v\t%v", q.Name, classToString(q.Class), typeToString(q.Type))
 }
 
-type RR interface {
+type RR struct {
+	RR_Header
+	Data RRData
+}
+
+func (r *RR) String() string {
+	return resourceRecordToString(&r.RR_Header, r.Data.String())
+}
+
+type RRData interface {
 	fmt.Stringer
-	Header() RR_Header
 	writeData(buf *dnsBuffer)
 }
 
@@ -186,47 +194,47 @@ func (m *Message) String() string {
 	return str
 }
 
-var _ RR = (*RR_Unknown)(nil)
+var _ RRData = (*RR_Unknown)(nil)
 
 type RR_Unknown struct {
 	RR_Header
 	Data []byte
 }
 
-// Header implements RR.
+// Header implements RRData.
 func (r *RR_Unknown) Header() RR_Header {
 	return r.RR_Header
 }
 
-// writeData implements RR.
+// writeData implements RRData.
 func (r *RR_Unknown) writeData(buf *dnsBuffer) {
 	buf.WriteU16(uint16(len(r.Data)))
 	buf.Write(r.Data)
 }
 
-// String implements RR.
+// String implements RRData.
 func (r *RR_Unknown) String() string {
-	return resourceRecordToString(&r.RR_Header, fmt.Sprintf("[unknown %v bytes]", len(r.Data)))
+	return fmt.Sprintf("[unknown %v bytes]", len(r.Data))
 }
 
-var _ RR = (*RR_A)(nil)
+var _ RRData = (*RR_A)(nil)
 
 type RR_A struct {
 	RR_Header
 	Addr [4]byte
 }
 
-// String implements RR.
+// String implements RRData.
 func (rr *RR_A) String() string {
-	return resourceRecordToString(&rr.RR_Header, fmt.Sprintf("%v.%v.%v.%v", rr.Addr[3], rr.Addr[2], rr.Addr[1], rr.Addr[0]))
+	return fmt.Sprintf("%v.%v.%v.%v", rr.Addr[3], rr.Addr[2], rr.Addr[1], rr.Addr[0])
 }
 
-// Header implements RR.
+// Header implements RRData.
 func (rr *RR_A) Header() RR_Header {
 	return rr.RR_Header
 }
 
-// writeData implements RR.
+// writeData implements RRData.
 func (rr *RR_A) writeData(buf *dnsBuffer) {
 	buf.WriteU16(4)
 	buf.Write(rr.Addr[:])
@@ -236,7 +244,7 @@ func (rr *RR_A) ToNetIp() net.IP {
 	return net.IPv4(rr.Addr[3], rr.Addr[2], rr.Addr[1], rr.Addr[0])
 }
 
-var _ RR = (*RR_AAAA)(nil)
+var _ RRData = (*RR_AAAA)(nil)
 
 type RR_AAAA struct {
 	RR_Header
@@ -247,35 +255,35 @@ func (rr *RR_AAAA) ToNetIp() net.IP {
 	return net.IP(rr.Addr[:])
 }
 
-// Header implements RR.
+// Header implements RRData.
 func (r *RR_AAAA) Header() RR_Header {
 	return r.RR_Header
 }
 
-// String implements RR.
+// String implements RRData.
 func (r *RR_AAAA) String() string {
-	return resourceRecordToString(&r.RR_Header, net.IP.To16(r.ToNetIp()).String())
+	return net.IP.To16(r.ToNetIp()).String()
 }
 
-// writeData implements RR.
+// writeData implements RRData.
 func (r *RR_AAAA) writeData(buf *dnsBuffer) {
 	buf.WriteU16(16)
 	buf.Write(r.Addr[:])
 }
 
-var _ RR = (*RR_NS)(nil)
+var _ RRData = (*RR_NS)(nil)
 
 type RR_NS struct {
 	RR_Header
 	Nameserver string
 }
 
-// Header implements RR.
+// Header implements RRData.
 func (r *RR_NS) Header() RR_Header {
 	return r.RR_Header
 }
 
-// writeData implements RR.
+// writeData implements RRData.
 func (r *RR_NS) writeData(buf *dnsBuffer) {
 	startPos := buf.Position()
 	buf.WriteU16(0)
@@ -288,34 +296,34 @@ func (r *RR_NS) writeData(buf *dnsBuffer) {
 	buf.SetPosition(endPos)
 }
 
-// String implements RR.
+// String implements RRData.
 func (r *RR_NS) String() string {
-	return resourceRecordToString(&r.RR_Header, r.Nameserver)
+	return r.Nameserver
 }
 
-var _ RR = (*RR_CNAME)(nil)
+var _ RRData = (*RR_CNAME)(nil)
 
 type RR_CNAME struct {
 	RR_Header
 	CNAME string
 }
 
-// Header implements RR.
+// Header implements RRData.
 func (r *RR_CNAME) Header() RR_Header {
 	return r.RR_Header
 }
 
-// String implements RR.
+// String implements RRData.
 func (r *RR_CNAME) String() string {
-	return resourceRecordToString(&r.RR_Header, r.Name)
+	return r.Name
 }
 
-// writeData implements RR.
+// writeData implements RRData.
 func (r *RR_CNAME) writeData(buf *dnsBuffer) {
-	encodeName(buf, r.Name)
+	encodeName(buf, r.CNAME)
 }
 
-var _ RR = (*RR_HINFO)(nil)
+var _ RRData = (*RR_HINFO)(nil)
 
 type RR_HINFO struct {
 	RR_Header
@@ -323,114 +331,114 @@ type RR_HINFO struct {
 	OS  string
 }
 
-// Header implements RR.
+// Header implements RRData.
 func (r *RR_HINFO) Header() RR_Header {
 	return r.RR_Header
 }
 
-// String implements RR.
+// String implements RRData.
 func (r *RR_HINFO) String() string {
-	return resourceRecordToString(&r.RR_Header, fmt.Sprintf("'%v' '%v'", r.CPU, r.OS))
+	return fmt.Sprintf("'%v' '%v'", r.CPU, r.OS)
 }
 
-// writeData implements RR.
+// writeData implements RRData.
 func (r *RR_HINFO) writeData(buf *dnsBuffer) {
 	// TODO: handle errors
 	encodeCharacterString(buf, r.CPU)
 	encodeCharacterString(buf, r.OS)
 }
 
-var _ RR = (*RR_MB)(nil)
+var _ RRData = (*RR_MB)(nil)
 
 type RR_MB struct {
 	RR_Header
 	MailboxDomain string
 }
 
-// Header implements RR.
+// Header implements RRData.
 func (r *RR_MB) Header() RR_Header {
 	return r.RR_Header
 }
 
-// String implements RR.
+// String implements RRData.
 func (r *RR_MB) String() string {
-	return resourceRecordToString(&r.RR_Header, r.MailboxDomain)
+	return r.MailboxDomain
 }
 
-// writeData implements RR.
+// writeData implements RRData.
 func (r *RR_MB) writeData(buf *dnsBuffer) {
 	encodeName(buf, r.MailboxDomain)
 }
 
-var _ RR = (*RR_MD)(nil)
+var _ RRData = (*RR_MD)(nil)
 
 type RR_MD struct {
 	RR_Header
 	MailAgentDomain string
 }
 
-// Header implements RR.
+// Header implements RRData.
 func (r *RR_MD) Header() RR_Header {
 	return r.RR_Header
 }
 
-// String implements RR.
+// String implements RRData.
 func (r *RR_MD) String() string {
-	return resourceRecordToString(&r.RR_Header, r.MailAgentDomain)
+	return r.MailAgentDomain
 }
 
-// writeData implements RR.
+// writeData implements RRData.
 func (r *RR_MD) writeData(buf *dnsBuffer) {
 	// TODO: handle error
 	encodeName(buf, r.MailAgentDomain)
 }
 
-var _ RR = (*RR_MF)(nil)
+var _ RRData = (*RR_MF)(nil)
 
 type RR_MF struct {
 	RR_Header
 	MailAgentDomain string
 }
 
-// Header implements RR.
+// Header implements RRData.
 func (r *RR_MF) Header() RR_Header {
 	return r.RR_Header
 }
 
-// String implements RR.
+// String implements RRData.
 func (r *RR_MF) String() string {
-	return resourceRecordToString(&r.RR_Header, r.MailAgentDomain)
+	return r.MailAgentDomain
 }
 
-// writeData implements RR.
+// writeData implements RRData.
 func (r *RR_MF) writeData(buf *dnsBuffer) {
 	// TODO: handle error
 	encodeName(buf, r.MailAgentDomain)
 }
 
-var _ RR = (*RR_MG)(nil)
+var _ RRData = (*RR_MG)(nil)
 
 type RR_MG struct {
 	RR_Header
 	MailGroupDomain string
 }
 
-// Header implements RR.
+// Header implements RRData.
 func (r *RR_MG) Header() RR_Header {
 	return r.RR_Header
 }
 
-// String implements RR.
+// String implements RRData.
 func (r *RR_MG) String() string {
-	return resourceRecordToString(&r.RR_Header, r.MailGroupDomain)
+	return r.MailGroupDomain
 }
 
-// writeData implements RR.
+// writeData implements RRData.
 func (r *RR_MG) writeData(buf *dnsBuffer) {
 	encodeName(buf, r.MailGroupDomain)
 }
 
-var _ RR = (*RR_MINFO)(nil)
+var _ RRData = (*RR_MINFO)(nil)
 
 type RR_MINFO struct {
 	RR_Header
@@ -438,47 +446,47 @@ type RR_MINFO struct {
 	EMAILBX string
 }
 
-// Header implements RR.
+// Header implements RRData.
 func (r *RR_MINFO) Header() RR_Header {
 	return r.RR_Header
 }
 
-// String implements RR.
+// String implements RRData.
 func (r *RR_MINFO) String() string {
-	return resourceRecordToString(&r.RR_Header, fmt.Sprintf("%v %v", r.RMAILBX, r.EMAILBX))
+	return fmt.Sprintf("%v %v", r.RMAILBX, r.EMAILBX)
 }
 
-// writeData implements RR.
+// writeData implements RRData.
 func (r *RR_MINFO) writeData(buf *dnsBuffer) {
 	// TODO: handle errors
 	encodeName(buf, r.RMAILBX)
 	encodeName(buf, r.EMAILBX)
 }
 
-var _ RR = (*RR_MR)(nil)
+var _ RRData = (*RR_MR)(nil)
 
 type RR_MR struct {
 	RR_Header
 	NewName string
 }
 
-// Header implements RR.
+// Header implements RRData.
 func (r *RR_MR) Header() RR_Header {
 	return r.RR_Header
 }
 
-// String implements RR.
+// String implements RRData.
 func (r *RR_MR) String() string {
-	return resourceRecordToString(&r.RR_Header, r.NewName)
+	return r.NewName
 }
 
-// writeData implements RR.
+// writeData implements RRData.
 func (r *RR_MR) writeData(buf *dnsBuffer) {
 	// TODO: handle error
 	encodeName(buf, r.NewName)
 }
 
-var _ RR = (*RR_MX)(nil)
+var _ RRData = (*RR_MX)(nil)
 
 type RR_MX struct {
 	RR_Header
@@ -486,40 +494,40 @@ type RR_MX struct {
 	Exchange   string
 }
 
-// Header implements RR.
+// Header implements RRData.
 func (r *RR_MX) Header() RR_Header {
 	return r.RR_Header
 }
 
-// String implements RR.
+// String implements RRData.
 func (r *RR_MX) String() string {
-	return resourceRecordToString(&r.RR_Header, fmt.Sprintf("%v %v", r.Preference, r.Exchange))
+	return fmt.Sprintf("%v %v", r.Preference, r.Exchange)
 }
 
-// writeData implements RR.
+// writeData implements RRData.
 func (r *RR_MX) writeData(buf *dnsBuffer) {
 	buf.WriteU16(r.Preference)
 	encodeName(buf, r.Exchange)
 }
 
-var _ RR = (*RR_NULL)(nil)
+var _ RRData = (*RR_NULL)(nil)
 
 type RR_NULL struct {
 	RR_Header
 	Data []byte
 }
 
-// Header implements RR.
+// Header implements RRData.
 func (r *RR_NULL) Header() RR_Header {
 	return r.RR_Header
 }
 
-// String implements RR.
+// String implements RRData.
 func (r *RR_NULL) String() string {
-	return resourceRecordToString(&r.RR_Header, fmt.Sprintf("[%v bytes]", len(r.Data)))
+	return fmt.Sprintf("[%v bytes]", len(r.Data))
 }
 
-// writeData implements RR.
+// writeData implements RRData.
 func (r *RR_NULL) writeData(buf *dnsBuffer) {
 	if len(r.Data) > 65535 {
 		// TODO: handle error
@@ -528,30 +536,30 @@ func (r *RR_NULL) writeData(buf *dnsBuffer) {
 	buf.Write(r.Data)
 }
 
-var _ RR = (*RR_PTR)(nil)
+var _ RRData = (*RR_PTR)(nil)
 
 type RR_PTR struct {
 	RR_Header
 	PTRDNAME string
 }
 
-// Header implements RR.
+// Header implements RRData.
 func (r *RR_PTR) Header() RR_Header {
 	return r.RR_Header
 }
 
-// String implements RR.
+// String implements RRData.
 func (r *RR_PTR) String() string {
-	return resourceRecordToString(&r.RR_Header, r.PTRDNAME)
+	return r.PTRDNAME
 }
 
-// writeData implements RR.
+// writeData implements RRData.
 func (r *RR_PTR) writeData(buf *dnsBuffer) {
 	// TODO: handle error
 	encodeName(buf, r.PTRDNAME)
 }
 
-var _ RR = (*RR_SOA)(nil)
+var _ RRData = (*RR_SOA)(nil)
 
 type RR_SOA struct {
 	RR_Header
@@ -564,17 +572,17 @@ type RR_SOA struct {
 	MINIMUM uint32
 }
 
-// Header implements RR.
+// Header implements RRData.
 func (r *RR_SOA) Header() RR_Header {
 	return r.RR_Header
 }
 
-// String implements RR.
+// String implements RRData.
 func (r *RR_SOA) String() string {
-	return resourceRecordToString(&r.RR_Header, r.MNAME, r.RNAME, r.SERIAL, r.REFRESH, r.RETRY, r.EXPIRE, r.MINIMUM)
+	return fmt.Sprint(r.MNAME, r.RNAME, r.SERIAL, r.REFRESH, r.RETRY, r.EXPIRE, r.MINIMUM)
 }
 
-// writeData implements RR.
+// writeData implements RRData.
 func (r *RR_SOA) writeData(buf *dnsBuffer) {
 	// TODO: handle errors
 	encodeName(buf, r.MNAME)
@@ -586,31 +594,31 @@ func (r *RR_SOA) writeData(buf *dnsBuffer) {
 	buf.WriteU32(r.MINIMUM)
 }
 
-var _ RR = (*RR_TXT)(nil)
+var _ RRData = (*RR_TXT)(nil)
 
 type RR_TXT struct {
 	RR_Header
 	Data string
 }
 
-// Header implements RR.
+// Header implements RRData.
 func (r *RR_TXT) Header() RR_Header {
 	return r.RR_Header
 }
 
-// String implements RR.
+// String implements RRData.
 func (r *RR_TXT) String() string {
-	return resourceRecordToString(&r.RR_Header, r.Data)
+	return r.Data
 }
 
-// writeData implements RR.
+// writeData implements RRData.
 func (r *RR_TXT) writeData(buf *dnsBuffer) {
 	// TODO: handle error
 	// TODO: RFC1035 says one or more character strings, this implementation might be incorrect.
 	encodeCharacterString(buf, r.Data)
 }
 
-var _ RR = (*RR_WKS)(nil)
+var _ RRData = (*RR_WKS)(nil)
 
 type RR_WKS struct {
 	RR_Header
@@ -619,17 +627,17 @@ type RR_WKS struct {
 	Services []uint8
 }
 
-// Header implements RR.
+// Header implements RRData.
 func (r *RR_WKS) Header() RR_Header {
 	return r.RR_Header
 }
 
-// String implements RR.
+// String implements RRData.
 func (r *RR_WKS) String() string {
-	return resourceRecordToString(&r.RR_Header, fmt.Sprintf("%v.%v.%v.%v", r.Address[3], r.Address[2], r.Address[1], r.Address[0]), r.Protocol)
+	return fmt.Sprintf("%v.%v.%v.%v\t%v", r.Address[3], r.Address[2], r.Address[1], r.Address[0], r.Protocol)
 }
 
-// writeData implements RR.
+// writeData implements RRData.
 func (r *RR_WKS) writeData(buf *dnsBuffer) {
 	buf.Write(r.Address[:])
 	buf.WriteU8(r.Protocol)

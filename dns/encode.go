@@ -56,14 +56,14 @@ func encodeQuestions(buf *dnsBuffer, qs []Question) {
 }
 
 func encodeResourceRecord(buf *dnsBuffer, rr RR) error {
-	header := rr.Header()
+	header := rr.RR_Header
 	if err := encodeName(buf, header.Name); err != nil {
 		return err
 	}
 	buf.WriteU16(header.Type)
 	buf.WriteU16(header.Class)
 	buf.WriteU32(header.TTL)
-	rr.writeData(buf) // TODO: handle error
+	rr.Data.writeData(buf) // TODO: handle error
 
 	// if len(rr.Data) > 0xFFFF {
 	// 	return ErrResourceRecordDataToLarge

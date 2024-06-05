@@ -79,7 +79,7 @@ func decodeQuestion(buf *dnsBuffer, question *Question) error {
 func decodeResourceRecord(buf *dnsBuffer) (RR, error) {
 	name, err := decodeName(buf)
 	if err != nil {
-		return nil, err
+		return RR{}, err
 	}
 
 	// TODO: error checking
@@ -98,134 +98,133 @@ func decodeResourceRecord(buf *dnsBuffer) (RR, error) {
 	switch ty {
 	case TYPE_A:
 		data := buf.Read(int(dlen))
-		return &RR_A{RR_Header: header, Addr: [4]byte{data[3], data[2], data[1], data[0]}}, nil
+		return RR{RR_Header: header, Data: &RR_A{Addr: [4]byte{data[3], data[2], data[1], data[0]}}}, nil
 	case TYPE_NS:
 		nsname, err := decodeName(buf)
 		if err != nil {
-			return nil, err
+			return RR{}, err
 		}
-		return &RR_NS{RR_Header: header, Nameserver: nsname}, nil
+		return RR{RR_Header: header, Data: &RR_NS{Nameserver: nsname}}, nil
 	case TYPE_MD:
 		agent, err := decodeName(buf)
 		if err != nil {
-			return nil, err
+			return RR{}, err
 		}
-		return &RR_MD{RR_Header: header, MailAgentDomain: agent}, nil
+		return RR{RR_Header: header, Data: &RR_MD{MailAgentDomain: agent}}, nil
 	case TYPE_MF:
 		agent, err := decodeName(buf)
 		if err != nil {
-			return nil, err
+			return RR{}, err
 		}
-		return &RR_MF{RR_Header: header, MailAgentDomain: agent}, nil
+		return RR{RR_Header: header, Data: &RR_MF{MailAgentDomain: agent}}, nil
 	case TYPE_CNAME:
 		name, err := decodeName(buf)
 		if err != nil {
-			return nil, err
+			return RR{}, err
 		}
-		return &RR_CNAME{RR_Header: header, CNAME: name}, nil
+		return RR{RR_Header: header, Data: &RR_CNAME{CNAME: name}}, nil
 	case TYPE_SOA:
 		mname, err := decodeName(buf)
 		if err != nil {
-			return nil, err
+			return RR{}, err
 		}
 		rname, err := decodeName(buf)
 		if err != nil {
-			return nil, err
+			return RR{}, err
 		}
 		serial := buf.ReadU32()
 		refresh := buf.ReadU32()
 		retry := buf.ReadU32()
 		expire := buf.ReadU32()
 		minimum := buf.ReadU32()
-		return &RR_SOA{
-			RR_Header: header,
-			MNAME:     mname,
-			RNAME:     rname,
-			SERIAL:    serial,
-			REFRESH:   refresh,
-			RETRY:     retry,
-			EXPIRE:    expire,
-			MINIMUM:   minimum,
-		}, nil
+		return RR{RR_Header: header, Data: &RR_SOA{
+			MNAME:   mname,
+			RNAME:   rname,
+			SERIAL:  serial,
+			REFRESH: refresh,
+			RETRY:   retry,
+			EXPIRE:  expire,
+			MINIMUM: minimum,
+		}}, nil
 	case TYPE_MB:
 		domain, err := decodeName(buf)
 		if err != nil {
-			return nil, err
+			return RR{}, err
 		}
-		return &RR_MB{RR_Header: header, MailboxDomain: domain}, nil
+		return RR{RR_Header: header, Data: &RR_MB{MailboxDomain: domain}}, nil
 	case TYPE_MG:
 		domain, err := decodeName(buf)
 		if err != nil {
-			return nil, err
+			return RR{}, err
 		}
-		return &RR_MG{RR_Header: header, MailGroupDomain: domain}, nil
+		return RR{RR_Header: header, Data: &RR_MG{MailGroupDomain: domain}}, nil
 	case TYPE_MR:
 		name, err := decodeName(buf)
 		if err != nil {
-			return nil, err
+			return RR{}, err
 		}
-		return &RR_MR{RR_Header: header, NewName: name}, nil
+		return RR{RR_Header: header, Data: &RR_MR{NewName: name}}, nil
 	case TYPE_NULL:
 		data := buf.Read(int(dlen))
-		return &RR_NULL{RR_Header: header, Data: data}, nil
+		return RR{RR_Header: header, Data: &RR_NULL{Data: data}}, nil
 	case TYPE_WKS:
 		address := buf.Read(4)
 		protocol := buf.ReadU8()
 		services := []uint8(buf.Read(int(dlen)))
-		return &RR_WKS{RR_Header: header, Address: [4]byte(address), Protocol: protocol, Services: services}, nil
+		return RR{RR_Header: header, Data: &RR_WKS{Address: [4]byte(address), Protocol: protocol, Services: services}}, nil
 	case TYPE_PTR:
 		name, err := decodeName(buf)
 		if err != nil {
-			return nil, err
+			return RR{}, err
 		}
-		return &RR_PTR{RR_Header: header, PTRDNAME: name}, nil
+		return RR{RR_Header: header, Data: &RR_PTR{PTRDNAME: name}}, nil
 	case TYPE_HINFO:
 		cpu, err := decodeCharacterString(buf)
 		if err != nil {
-			return nil, err
+			return RR{}, err
 		}
 		os, err := decodeCharacterString(buf)
 		if err != nil {
-			return nil, err
+			return RR{}, err
 		}
-		return &RR_HINFO{RR_Header: header, CPU: cpu, OS: os}, nil
+		return RR{RR_Header: header, Data: &RR_HINFO{CPU: cpu, OS: os}}, nil
 	case TYPE_MINFO:
 		rmailbx, err := decodeName(buf)
 		if err != nil {
-			return nil, err
+			return RR{}, err
 		}
 		emailbx, err := decodeName(buf)
 		if err != nil {
-			return nil, err
+			return RR{}, err
 		}
-		return &RR_MINFO{RR_Header: header, RMAILBX: rmailbx, EMAILBX: emailbx}, nil
+		return RR{RR_Header: header, Data: &RR_MINFO{RMAILBX: rmailbx, EMAILBX: emailbx}}, nil
 	case TYPE_MX:
 		preference := buf.ReadU16()
 		exchange, err := decodeName(buf)
 		if err != nil {
-			return nil, err
+			return RR{}, err
 		}
-		return &RR_MX{RR_Header: header, Preference: preference, Exchange: exchange}, nil
+		return RR{RR_Header: header, Data: &RR_MX{Preference: preference, Exchange: exchange}}, nil
 	case TYPE_TXT:
 		data, err := decodeCharacterString(buf)
 		if err != nil {
-			return nil, err
+			return RR{}, err
 		}
-		return &RR_TXT{RR_Header: header, Data: data}, nil
+		return RR{RR_Header: header, Data: &RR_TXT{Data: data}}, nil
 	case TYPE_AXFR:
-		return nil, ErrNotImplemented
+		return RR{}, ErrNotImplemented
 	case TYPE_MAILB:
-		return nil, ErrNotImplemented
+		return RR{}, ErrNotImplemented
 	case TYPE_MAILA:
-		return nil, ErrNotImplemented
+		return RR{}, ErrNotImplemented
 	case TYPE_AAAA:
 		data := buf.Read(int(dlen))
-		rr := RR_AAAA{RR_Header: header}
-		copy(rr.Addr[:], data)
-		return &rr, nil
+		rrdata := &RR_AAAA{RR_Header: header}
+		copy(rrdata.Addr[:], data)
+		return RR{RR_Header: header, Data: rrdata}, nil
 	default:
 		data := buf.Read(int(dlen))
-		return &RR_Unknown{RR_Header: header, Data: data}, nil
+		return RR{RR_Header: header, Data: &RR_Unknown{Data: data}}, nil
 	}
 }
 
