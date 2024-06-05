@@ -1,6 +1,7 @@
 package dns
 
 import (
+	"math/rand"
 	"net"
 	"slices"
 	"strconv"
@@ -11,6 +12,10 @@ var RootServersIpv4 []net.IP = []net.IP{
 	net.IPv4(198, 41, 0, 4),    // a
 	net.IPv4(170, 247, 170, 2), // b
 	net.IPv4(192, 33, 4, 12),   // c
+}
+
+func genRandomId() uint16 {
+	return uint16(rand.Intn(65536))
 }
 
 func findIpv4AddrInAdditional(msg *Message, nameserver string) (net.IP, bool) {
@@ -64,10 +69,31 @@ func splitNameIntoLabels(name string) []string {
 	return components
 }
 
-func compareNames(lhs, rhs string) bool {
+func labelEq(lhs, rhs string) bool {
+	return strings.EqualFold(lhs, rhs)
+}
+
+func nameEq(lhs, rhs string) bool {
 	lhsLabels := splitNameIntoLabels(lhs)
 	rhsLabels := splitNameIntoLabels(rhs)
 	return slices.Equal(lhsLabels, rhsLabels)
+}
+
+// check how many labels the names have in common starting from the root until the first non common label
+func compareNamesCommonLabels(lhs, rhs string) int {
+	lhsLabels := splitNameIntoLabels(lhs)
+	rhsLabels := splitNameIntoLabels(rhs)
+	common := 0
+	for i := 0; i < min(len(lhsLabels), len(rhsLabels)); i++ {
+		lhsLabel := lhsLabels[len(lhsLabels)-1-i]
+		rhsLabel := lhsLabels[len(rhsLabels)-1-i]
+		if labelEq(lhsLabel, rhsLabel) {
+			common += 1
+		} else {
+			break
+		}
+	}
+	return common
 }
 
 func typeToString(t uint16) string {

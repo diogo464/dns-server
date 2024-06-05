@@ -49,10 +49,13 @@ func encodeQuestion(buf *dnsBuffer, q *Question) error {
 	return nil
 }
 
-func encodeQuestions(buf *dnsBuffer, qs []Question) {
+func encodeQuestions(buf *dnsBuffer, qs []Question) error {
 	for _, q := range qs {
-		encodeQuestion(buf, &q)
+		if err := encodeQuestion(buf, &q); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 func encodeResourceRecord(buf *dnsBuffer, rr RR) error {
@@ -63,7 +66,15 @@ func encodeResourceRecord(buf *dnsBuffer, rr RR) error {
 	buf.WriteU16(header.Type)
 	buf.WriteU16(header.Class)
 	buf.WriteU32(header.TTL)
+
+	startPos := buf.Position()
+	buf.WriteU16(0)
 	rr.Data.writeData(buf) // TODO: handle error
+	endPos := buf.Position()
+	dataLen := uint16(endPos - startPos - 2)
+	buf.SetPosition(startPos)
+	buf.WriteU16(dataLen)
+	buf.SetPosition(endPos)
 
 	// if len(rr.Data) > 0xFFFF {
 	// 	return ErrResourceRecordDataToLarge
@@ -74,10 +85,13 @@ func encodeResourceRecord(buf *dnsBuffer, rr RR) error {
 	return nil
 }
 
-func encodeResourceRecords(buf *dnsBuffer, rrs []RR) {
+func encodeResourceRecords(buf *dnsBuffer, rrs []RR) error {
 	for _, rr := range rrs {
-		encodeResourceRecord(buf, rr)
+		if err := encodeResourceRecord(buf, rr); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 func encodeLabel(buf *dnsBuffer, label string) error {

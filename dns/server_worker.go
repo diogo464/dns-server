@@ -14,20 +14,22 @@ type workerJob struct {
 }
 
 type worker struct {
-	ctx    context.Context
-	cancel context.CancelFunc
-	chann  chan workerJob
-	cache  *workerCache
+	ctx      context.Context
+	cancel   context.CancelFunc
+	chann    chan workerJob
+	cache    *workerCache
+	resolver *workerResolver
 }
 
 func newWorker() *worker {
 	chann := make(chan workerJob, defaultWorkerChannSize)
 	ctx, cancel := context.WithCancel(context.Background())
 	return &worker{
-		ctx:    ctx,
-		cancel: cancel,
-		chann:  chann,
-		cache:  newWorkerCache(),
+		ctx:      ctx,
+		cancel:   cancel,
+		chann:    chann,
+		cache:    newWorkerCache(),
+		resolver: newWorkerResolver(),
 	}
 }
 
@@ -82,7 +84,7 @@ func (w *worker) process(job workerJob) *Message {
 
 	rrs, resolve := w.cache.get(question.Name, question.Type)
 	if resolve {
-		resolvedRRs, err := Resolve(question.Name, question.Type)
+		resolvedRRs, err := w.resolver.Resolve(question.Name, question.Type)
 		if err != nil {
 			slog.Warn("failed to resolve name", "error", err, "name", question.Name)
 			return createErrorResponseMessage(msg, RCODE_SERVER_FAILURE)
@@ -97,7 +99,9 @@ func (w *worker) process(job workerJob) *Message {
 	response.Header.RecursionAvailable = true
 	response.Header.RecursionDesired = msg.Header.RecursionDesired
 	response.Header.ResponseCode = RCODE_NO_ERROR
+	response.Header.QuestionCount = msg.Header.QuestionCount
 	response.Header.AnswerCount = uint16(len(rrs))
+	response.Questions = msg.Questions
 	response.Answers = rrs
 	fmt.Println("response")
 	fmt.Println(response)

@@ -9,7 +9,24 @@ import (
 
 // TODO: follow CNAMEs
 
-func Resolve(name string, ty uint16) ([]RR, error) {
+type workerResolver struct {
+	// keep track of resolved domains for the current query to prevent loops due to CNAMEs
+	resolvedDomains map[string]struct{}
+	// keep track of resolved authority name servers to prevent loops
+	resolvedNameservers map[string]struct{}
+}
+
+func newWorkerResolver() *workerResolver {
+	return &workerResolver{}
+}
+
+func (r *workerResolver) Resolve(name string, ty uint16) ([]RR, error) {
+	r.resolvedDomains = make(map[string]struct{})
+	r.resolvedNameservers = make(map[string]struct{})
+	return r.resolveRecursive(name, ty)
+}
+
+func (r *workerResolver) resolveRecursive(name string, ty uint16) ([]RR, error) {
 	nextServers := []sockAddr{}
 	for _, ip := range RootServersIpv4 {
 		nextServers = append(nextServers, sockAddr{
@@ -25,6 +42,20 @@ func Resolve(name string, ty uint16) ([]RR, error) {
 		}
 
 		if len(response.Answers) > 0 {
+			if ty != TYPE_CNAME {
+				if rrdata, iscname := response.Answers[0].Data.(*RR_CNAME); iscname {
+					if _, isresolved := r.resolvedDomains[rrdata.CNAME]; !isresolved {
+						r.resolvedDomains[rrdata.CNAME] = struct{}{}
+						cnamerrs, err := r.resolveRecursive(rrdata.CNAME, ty)
+						if err != nil {
+							return nil, err
+						}
+						for _, rr := range cnamerrs {
+							response.Answers = append(response.Answers, rr)
+						}
+					}
+				}
+			}
 			return response.Answers, nil
 		}
 
@@ -55,7 +86,13 @@ func Resolve(name string, ty uint16) ([]RR, error) {
 
 		// resolve names of missing authority servers
 		for authority := range authorities {
-			rrs, err := Resolve(authority, TYPE_A)
+			if _, ok := r.resolvedNameservers[authority]; ok {
+				continue
+			}
+			// set the server as resolved before actually resolving it so we can ignore it if it tries to be resolved inside this next resolve
+			r.resolvedNameservers[authority] = struct{}{}
+
+			rrs, err := r.resolveRecursive(authority, TYPE_A)
 			if err != nil {
 				slog.Debug("failed to resolve authority server address", "authority", authority, "error", err)
 				continue
@@ -95,6 +132,7 @@ func requestTcp(addr sockAddr, name string, ty uint16) (*Message, error) {
 	}
 
 	msg := Message{}
+	msg.Header.Id = genRandomId()
 	msg.Header.Opcode = OPCODE_QUERY
 	msg.Header.QuestionCount = 1
 	msg.Questions = []Question{
@@ -136,6 +174,14 @@ func requestTcp(addr sockAddr, name string, ty uint16) (*Message, error) {
 		slog.Debug("failed to decoded response", "error", err)
 		return nil, err
 	}
+
+	if resp.Header.Id != msg.Header.Id {
+		slog.Debug("received incorrect message id")
+		return nil, ErrIncorrectIdReceived
+	}
+
+	fmt.Println("server response")
+	fmt.Println(resp)
 
 	return resp, nil
 }

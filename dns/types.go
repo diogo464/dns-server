@@ -13,6 +13,7 @@ var ErrResourceRecordDataToLarge = fmt.Errorf("resource record data is to large"
 var ErrInvalidRRType = fmt.Errorf("invalid RR type")
 var ErrInvalidRRData = fmt.Errorf("invalid RR data")
 var ErrNotImplemented = fmt.Errorf("not implemented")
+var ErrIncorrectIdReceived = fmt.Errorf("received incorrect message id in response")
 
 const MAX_LABEL_SIZE = 63
 const MAX_UDP_MESSAGE_SIZE = 512
@@ -237,7 +238,6 @@ func (rr *RR_A) Header() RR_Header {
 
 // writeData implements RRData.
 func (rr *RR_A) writeData(buf *dnsBuffer) {
-	buf.WriteU16(4)
 	buf.Write(rr.Addr[:])
 }
 
@@ -268,7 +268,6 @@ func (r *RR_AAAA) String() string {
 
 // writeData implements RRData.
 func (r *RR_AAAA) writeData(buf *dnsBuffer) {
-	buf.WriteU16(16)
 	buf.Write(r.Addr[:])
 }
 
@@ -286,15 +285,7 @@ func (r *RR_NS) Header() RR_Header {
 
 // writeData implements RRData.
 func (r *RR_NS) writeData(buf *dnsBuffer) {
-	startPos := buf.Position()
-	buf.WriteU16(0)
 	encodeName(buf, r.Nameserver) // TODO: handle error
-	endPos := buf.Position()
-
-	nameLen := uint16(endPos - startPos - 2)
-	buf.SetPosition(startPos)
-	buf.WriteU16(nameLen)
-	buf.SetPosition(endPos)
 }
 
 // String implements RRData.
@@ -316,7 +307,7 @@ func (r *RR_CNAME) Header() RR_Header {
 
 // String implements RRData.
 func (r *RR_CNAME) String() string {
-	return r.Name
+	return r.CNAME
 }
 
 // writeData implements RRData.
