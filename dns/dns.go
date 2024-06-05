@@ -21,7 +21,7 @@ func genRandomId() uint16 {
 func findIpv4AddrInAdditional(msg *Message, nameserver string) (net.IP, bool) {
 	for _, rr := range msg.Additional {
 		if rr_a, ok := rr.Data.(*RR_A); ok {
-			if rr_a.Name == nameserver {
+			if rr.Name == nameserver {
 				return rr_a.ToNetIp(), true
 			}
 		}
@@ -32,7 +32,7 @@ func findIpv4AddrInAdditional(msg *Message, nameserver string) (net.IP, bool) {
 func findIpv6AddrInAdditional(msg *Message, nameserver string) (net.IP, bool) {
 	for _, rr := range msg.Additional {
 		if rr_aaaa, ok := rr.Data.(*RR_AAAA); ok {
-			if rr_aaaa.Name == nameserver {
+			if rr.Name == nameserver {
 				return rr_aaaa.ToNetIp(), true
 			}
 		}

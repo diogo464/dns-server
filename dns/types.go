@@ -199,13 +199,7 @@ func (m *Message) String() string {
 var _ RRData = (*RR_Unknown)(nil)
 
 type RR_Unknown struct {
-	RR_Header
 	Data []byte
-}
-
-// Header implements RRData.
-func (r *RR_Unknown) Header() RR_Header {
-	return r.RR_Header
 }
 
 // writeData implements RRData.
@@ -222,18 +216,12 @@ func (r *RR_Unknown) String() string {
 var _ RRData = (*RR_A)(nil)
 
 type RR_A struct {
-	RR_Header
 	Addr [4]byte
 }
 
 // String implements RRData.
 func (rr *RR_A) String() string {
 	return fmt.Sprintf("%v.%v.%v.%v", rr.Addr[3], rr.Addr[2], rr.Addr[1], rr.Addr[0])
-}
-
-// Header implements RRData.
-func (rr *RR_A) Header() RR_Header {
-	return rr.RR_Header
 }
 
 // writeData implements RRData.
@@ -248,17 +236,11 @@ func (rr *RR_A) ToNetIp() net.IP {
 var _ RRData = (*RR_AAAA)(nil)
 
 type RR_AAAA struct {
-	RR_Header
 	Addr [16]byte
 }
 
 func (rr *RR_AAAA) ToNetIp() net.IP {
 	return net.IP(rr.Addr[:])
-}
-
-// Header implements RRData.
-func (r *RR_AAAA) Header() RR_Header {
-	return r.RR_Header
 }
 
 // String implements RRData.
@@ -274,13 +256,7 @@ func (r *RR_AAAA) writeData(buf *dnsBuffer) {
 var _ RRData = (*RR_NS)(nil)
 
 type RR_NS struct {
-	RR_Header
 	Nameserver string
-}
-
-// Header implements RRData.
-func (r *RR_NS) Header() RR_Header {
-	return r.RR_Header
 }
 
 // writeData implements RRData.
@@ -296,13 +272,7 @@ func (r *RR_NS) String() string {
 var _ RRData = (*RR_CNAME)(nil)
 
 type RR_CNAME struct {
-	RR_Header
 	CNAME string
-}
-
-// Header implements RRData.
-func (r *RR_CNAME) Header() RR_Header {
-	return r.RR_Header
 }
 
 // String implements RRData.
@@ -318,14 +288,8 @@ func (r *RR_CNAME) writeData(buf *dnsBuffer) {
 var _ RRData = (*RR_HINFO)(nil)
 
 type RR_HINFO struct {
-	RR_Header
 	CPU string
 	OS  string
-}
-
-// Header implements RRData.
-func (r *RR_HINFO) Header() RR_Header {
-	return r.RR_Header
 }
 
 // String implements RRData.
@@ -343,13 +307,7 @@ func (r *RR_HINFO) writeData(buf *dnsBuffer) {
 var _ RRData = (*RR_MB)(nil)
 
 type RR_MB struct {
-	RR_Header
 	MailboxDomain string
-}
-
-// Header implements RRData.
-func (r *RR_MB) Header() RR_Header {
-	return r.RR_Header
 }
 
 // String implements RRData.
@@ -365,13 +323,7 @@ func (r *RR_MB) writeData(buf *dnsBuffer) {
 var _ RRData = (*RR_MD)(nil)
 
 type RR_MD struct {
-	RR_Header
 	MailAgentDomain string
-}
-
-// Header implements RRData.
-func (r *RR_MD) Header() RR_Header {
-	return r.RR_Header
 }
 
 // String implements RRData.
@@ -388,13 +340,7 @@ func (r *RR_MD) writeData(buf *dnsBuffer) {
 var _ RRData = (*RR_MF)(nil)
 
 type RR_MF struct {
-	RR_Header
 	MailAgentDomain string
-}
-
-// Header implements RRData.
-func (r *RR_MF) Header() RR_Header {
-	return r.RR_Header
 }
 
 // String implements RRData.
@@ -411,13 +357,7 @@ func (r *RR_MF) writeData(buf *dnsBuffer) {
 var _ RRData = (*RR_MG)(nil)
 
 type RR_MG struct {
-	RR_Header
 	MailGroupDomain string
-}
-
-// Header implements RRData.
-func (r *RR_MG) Header() RR_Header {
-	return r.RR_Header
 }
 
 // String implements RRData.
@@ -433,14 +373,8 @@ func (r *RR_MG) writeData(buf *dnsBuffer) {
 var _ RRData = (*RR_MINFO)(nil)
 
 type RR_MINFO struct {
-	RR_Header
 	RMAILBX string
 	EMAILBX string
-}
-
-// Header implements RRData.
-func (r *RR_MINFO) Header() RR_Header {
-	return r.RR_Header
 }
 
 // String implements RRData.
@@ -458,13 +392,7 @@ func (r *RR_MINFO) writeData(buf *dnsBuffer) {
 var _ RRData = (*RR_MR)(nil)
 
 type RR_MR struct {
-	RR_Header
 	NewName string
-}
-
-// Header implements RRData.
-func (r *RR_MR) Header() RR_Header {
-	return r.RR_Header
 }
 
 // String implements RRData.
@@ -481,14 +409,8 @@ func (r *RR_MR) writeData(buf *dnsBuffer) {
 var _ RRData = (*RR_MX)(nil)
 
 type RR_MX struct {
-	RR_Header
 	Preference uint16
 	Exchange   string
-}
-
-// Header implements RRData.
-func (r *RR_MX) Header() RR_Header {
-	return r.RR_Header
 }
 
 // String implements RRData.
@@ -505,13 +427,7 @@ func (r *RR_MX) writeData(buf *dnsBuffer) {
 var _ RRData = (*RR_NULL)(nil)
 
 type RR_NULL struct {
-	RR_Header
 	Data []byte
-}
-
-// Header implements RRData.
-func (r *RR_NULL) Header() RR_Header {
-	return r.RR_Header
 }
 
 // String implements RRData.
@@ -531,13 +447,7 @@ func (r *RR_NULL) writeData(buf *dnsBuffer) {
 var _ RRData = (*RR_PTR)(nil)
 
 type RR_PTR struct {
-	RR_Header
 	PTRDNAME string
-}
-
-// Header implements RRData.
-func (r *RR_PTR) Header() RR_Header {
-	return r.RR_Header
 }
 
 // String implements RRData.
@@ -554,7 +464,6 @@ func (r *RR_PTR) writeData(buf *dnsBuffer) {
 var _ RRData = (*RR_SOA)(nil)
 
 type RR_SOA struct {
-	RR_Header
 	MNAME   string
 	RNAME   string
 	SERIAL  uint32
@@ -562,11 +471,6 @@ type RR_SOA struct {
 	RETRY   uint32
 	EXPIRE  uint32
 	MINIMUM uint32
-}
-
-// Header implements RRData.
-func (r *RR_SOA) Header() RR_Header {
-	return r.RR_Header
 }
 
 // String implements RRData.
@@ -589,13 +493,7 @@ func (r *RR_SOA) writeData(buf *dnsBuffer) {
 var _ RRData = (*RR_TXT)(nil)
 
 type RR_TXT struct {
-	RR_Header
 	Data string
-}
-
-// Header implements RRData.
-func (r *RR_TXT) Header() RR_Header {
-	return r.RR_Header
 }
 
 // String implements RRData.
@@ -613,15 +511,9 @@ func (r *RR_TXT) writeData(buf *dnsBuffer) {
 var _ RRData = (*RR_WKS)(nil)
 
 type RR_WKS struct {
-	RR_Header
 	Address  [4]byte
 	Protocol uint8
 	Services []uint8
-}
-
-// Header implements RRData.
-func (r *RR_WKS) Header() RR_Header {
-	return r.RR_Header
 }
 
 // String implements RRData.
