@@ -176,6 +176,7 @@ type Message struct {
 func (m *Message) String() string {
 	str := ""
 	str += m.Header.String() + "\n"
+	str += "\n;; Question\n"
 	for _, q := range m.Questions {
 		str += q.String() + "\n"
 	}
