@@ -92,6 +92,6 @@ func (s *SharedAuthorityCache) Get(zone string) []string {
 // Put implements AuthorityCache.
 func (s *SharedAuthorityCache) Put(zone string, nameservers []string, ttl uint32) {
 	s.Lock()
-	defer s.RUnlock()
+	defer s.Unlock()
 	s.exclusive.Put(zone, nameservers, ttl)
 }
