@@ -9,13 +9,6 @@ import (
 	"net"
 )
 
-// server:
-// listen on given udp/tcp addresses
-// decode incoming requests
-// reject requests that are not question, have multiple question, ...
-// hash the question domain and send the request to the appropriate worker goroutine
-// each goroutine holds its own cache and recursively resolves addresses if they are not in cache
-
 type ServerOption func(*ServerConfig) error
 
 type ServerConfig struct {
