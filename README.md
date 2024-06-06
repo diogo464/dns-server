@@ -32,7 +32,7 @@ github.com.             54      IN      A       140.82.121.4
 
 ## references
 
-https://datatracker.ietf.org/doc/html/rfc1034
-https://datatracker.ietf.org/doc/html/rfc1035
-https://datatracker.ietf.org/doc/html/rfc3596
-https://blog.cloudflare.com
+- https://datatracker.ietf.org/doc/html/rfc1034
+- https://datatracker.ietf.org/doc/html/rfc1035
+- https://datatracker.ietf.org/doc/html/rfc3596
+- https://blog.cloudflare.com
