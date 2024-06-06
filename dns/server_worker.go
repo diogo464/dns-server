@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"math"
 	"net"
-	"slices"
 )
 
 const defaultWorkerChannSize = 64
@@ -124,9 +123,8 @@ func (w *worker) resolve(name string, ty uint16, visitedCNAMEs map[string]struct
 		return rrs
 	}
 
-	// find best nameservers and reverse to create a queue with the best element at the end
+	// find the best nameservers and use the slice as a queue
 	nameservers := FindBestAuthorityServers(w.authorityCache, name)
-	slices.Reverse(nameservers)
 
 	resolveAnswer := make([]RR, 0)
 	for {
