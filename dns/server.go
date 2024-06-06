@@ -64,8 +64,10 @@ func (s *Server) Run() error {
 	}
 
 	slog.Debug("spawning workers", "workers", s.config.workers)
+	authorityCache := NewSharedAuthorityCache()
+	resourceCache := NewSharedResourceCache()
 	for i := 0; i < s.config.workers; i++ {
-		worker := newWorker()
+		worker := newWorker(authorityCache, resourceCache)
 		s.workers = append(s.workers, worker)
 		go worker.run()
 	}

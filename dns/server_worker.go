@@ -24,15 +24,15 @@ type worker struct {
 	resourceCache  ResourceCache
 }
 
-func newWorker() *worker {
+func newWorker(authorityCache AuthorityCache, resourceCache ResourceCache) *worker {
 	chann := make(chan workerJob, defaultWorkerChannSize)
 	ctx, cancel := context.WithCancel(context.Background())
 	return &worker{
 		ctx:            ctx,
 		cancel:         cancel,
 		chann:          chann,
-		authorityCache: NewExclusiveAuthorityCache(),
-		resourceCache:  NewSharedResourceCache(),
+		authorityCache: authorityCache,
+		resourceCache:  resourceCache,
 	}
 }
 
