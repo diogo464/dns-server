@@ -243,7 +243,11 @@ func requestTcp(addr sockAddr, name string, ty uint16) (*Message, error) {
 		},
 	}
 
-	encodedRequest := Encode(&msg)
+	encodedRequest, err := Encode(&msg, MessageSizeLimitTCP)
+	if err != nil {
+		return nil, err
+	}
+
 	encodedLength := make([]byte, 2)
 	binary.BigEndian.PutUint16(encodedLength, uint16(len(encodedRequest)))
 	if _, err := conn.Write(encodedLength); err != nil {

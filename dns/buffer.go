@@ -51,18 +51,19 @@ func (r *dnsBuffer) ReadU32() uint32 {
 }
 
 func (w *dnsBuffer) WriteU8(v uint8) {
-	w.buffer[w.cursor] = byte(v)
-	w.cursor += 1
+	w.Write([]byte{v})
 }
 
 func (w *dnsBuffer) WriteU16(v uint16) {
-	binary.BigEndian.PutUint16(w.buffer[w.cursor:w.cursor+2], v)
-	w.cursor += 2
+	buf := make([]byte, 2)
+	binary.BigEndian.PutUint16(buf, v)
+	w.Write(buf)
 }
 
 func (w *dnsBuffer) WriteU32(v uint32) {
-	binary.BigEndian.PutUint32(w.buffer[w.cursor:w.cursor+4], v)
-	w.cursor += 4
+	buf := make([]byte, 4)
+	binary.BigEndian.PutUint32(buf, v)
+	w.Write(buf)
 }
 
 func (w *dnsBuffer) Write(buf []byte) {
@@ -71,5 +72,9 @@ func (w *dnsBuffer) Write(buf []byte) {
 }
 
 func (w *dnsBuffer) Bytes() []byte {
-	return w.buffer[:w.cursor]
+	return w.buffer[:min(w.cursor, len(w.buffer))]
+}
+
+func (w *dnsBuffer) Truncated() bool {
+	return len(w.buffer) < w.cursor
 }

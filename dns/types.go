@@ -156,7 +156,7 @@ func (r *RR) String() string {
 
 type RRData interface {
 	fmt.Stringer
-	writeData(buf *dnsBuffer)
+	writeData(buf *dnsBuffer) error
 }
 
 type RR_Header struct {
@@ -203,9 +203,10 @@ type RR_Unknown struct {
 }
 
 // writeData implements RRData.
-func (r *RR_Unknown) writeData(buf *dnsBuffer) {
+func (r *RR_Unknown) writeData(buf *dnsBuffer) error {
 	buf.WriteU16(uint16(len(r.Data)))
 	buf.Write(r.Data)
+	return nil
 }
 
 // String implements RRData.
@@ -225,8 +226,9 @@ func (rr *RR_A) String() string {
 }
 
 // writeData implements RRData.
-func (rr *RR_A) writeData(buf *dnsBuffer) {
+func (rr *RR_A) writeData(buf *dnsBuffer) error {
 	buf.Write(rr.Addr[:])
+	return nil
 }
 
 func (rr *RR_A) ToNetIp() net.IP {
@@ -250,8 +252,9 @@ func (r *RR_AAAA) String() string {
 }
 
 // writeData implements RRData.
-func (r *RR_AAAA) writeData(buf *dnsBuffer) {
+func (r *RR_AAAA) writeData(buf *dnsBuffer) error {
 	buf.Write(r.Addr[:])
+	return nil
 }
 
 var _ RRData = (*RR_NS)(nil)
@@ -261,8 +264,8 @@ type RR_NS struct {
 }
 
 // writeData implements RRData.
-func (r *RR_NS) writeData(buf *dnsBuffer) {
-	encodeName(buf, r.Nameserver) // TODO: handle error
+func (r *RR_NS) writeData(buf *dnsBuffer) error {
+	return encodeName(buf, r.Nameserver)
 }
 
 // String implements RRData.
@@ -282,8 +285,8 @@ func (r *RR_CNAME) String() string {
 }
 
 // writeData implements RRData.
-func (r *RR_CNAME) writeData(buf *dnsBuffer) {
-	encodeName(buf, r.CNAME)
+func (r *RR_CNAME) writeData(buf *dnsBuffer) error {
+	return encodeName(buf, r.CNAME)
 }
 
 var _ RRData = (*RR_HINFO)(nil)
@@ -299,10 +302,14 @@ func (r *RR_HINFO) String() string {
 }
 
 // writeData implements RRData.
-func (r *RR_HINFO) writeData(buf *dnsBuffer) {
-	// TODO: handle errors
-	encodeCharacterString(buf, r.CPU)
-	encodeCharacterString(buf, r.OS)
+func (r *RR_HINFO) writeData(buf *dnsBuffer) error {
+	if err := encodeCharacterString(buf, r.CPU); err != nil {
+		return err
+	}
+	if err := encodeCharacterString(buf, r.OS); err != nil {
+		return err
+	}
+	return nil
 }
 
 var _ RRData = (*RR_MB)(nil)
@@ -317,8 +324,8 @@ func (r *RR_MB) String() string {
 }
 
 // writeData implements RRData.
-func (r *RR_MB) writeData(buf *dnsBuffer) {
-	encodeName(buf, r.MailboxDomain)
+func (r *RR_MB) writeData(buf *dnsBuffer) error {
+	return encodeName(buf, r.MailboxDomain)
 }
 
 var _ RRData = (*RR_MD)(nil)
@@ -333,9 +340,8 @@ func (r *RR_MD) String() string {
 }
 
 // writeData implements RRData.
-func (r *RR_MD) writeData(buf *dnsBuffer) {
-	// TODO: handle error
-	encodeName(buf, r.MailAgentDomain)
+func (r *RR_MD) writeData(buf *dnsBuffer) error {
+	return encodeName(buf, r.MailAgentDomain)
 }
 
 var _ RRData = (*RR_MF)(nil)
@@ -350,9 +356,8 @@ func (r *RR_MF) String() string {
 }
 
 // writeData implements RRData.
-func (r *RR_MF) writeData(buf *dnsBuffer) {
-	// TODO: handle error
-	encodeName(buf, r.MailAgentDomain)
+func (r *RR_MF) writeData(buf *dnsBuffer) error {
+	return encodeName(buf, r.MailAgentDomain)
 }
 
 var _ RRData = (*RR_MG)(nil)
@@ -367,8 +372,8 @@ func (r *RR_MG) String() string {
 }
 
 // writeData implements RRData.
-func (r *RR_MG) writeData(buf *dnsBuffer) {
-	encodeName(buf, r.MailGroupDomain)
+func (r *RR_MG) writeData(buf *dnsBuffer) error {
+	return encodeName(buf, r.MailGroupDomain)
 }
 
 var _ RRData = (*RR_MINFO)(nil)
@@ -384,10 +389,14 @@ func (r *RR_MINFO) String() string {
 }
 
 // writeData implements RRData.
-func (r *RR_MINFO) writeData(buf *dnsBuffer) {
-	// TODO: handle errors
-	encodeName(buf, r.RMAILBX)
-	encodeName(buf, r.EMAILBX)
+func (r *RR_MINFO) writeData(buf *dnsBuffer) error {
+	if err := encodeName(buf, r.RMAILBX); err != nil {
+		return err
+	}
+	if err := encodeName(buf, r.EMAILBX); err != nil {
+		return err
+	}
+	return nil
 }
 
 var _ RRData = (*RR_MR)(nil)
@@ -402,9 +411,8 @@ func (r *RR_MR) String() string {
 }
 
 // writeData implements RRData.
-func (r *RR_MR) writeData(buf *dnsBuffer) {
-	// TODO: handle error
-	encodeName(buf, r.NewName)
+func (r *RR_MR) writeData(buf *dnsBuffer) error {
+	return encodeName(buf, r.NewName)
 }
 
 var _ RRData = (*RR_MX)(nil)
@@ -420,9 +428,9 @@ func (r *RR_MX) String() string {
 }
 
 // writeData implements RRData.
-func (r *RR_MX) writeData(buf *dnsBuffer) {
+func (r *RR_MX) writeData(buf *dnsBuffer) error {
 	buf.WriteU16(r.Preference)
-	encodeName(buf, r.Exchange)
+	return encodeName(buf, r.Exchange)
 }
 
 var _ RRData = (*RR_NULL)(nil)
@@ -437,12 +445,12 @@ func (r *RR_NULL) String() string {
 }
 
 // writeData implements RRData.
-func (r *RR_NULL) writeData(buf *dnsBuffer) {
+func (r *RR_NULL) writeData(buf *dnsBuffer) error {
 	if len(r.Data) > 65535 {
-		// TODO: handle error
-		// return ErrRDataToLarge
+		return ErrRDataToLarge
 	}
 	buf.Write(r.Data)
+	return nil
 }
 
 var _ RRData = (*RR_PTR)(nil)
@@ -457,9 +465,8 @@ func (r *RR_PTR) String() string {
 }
 
 // writeData implements RRData.
-func (r *RR_PTR) writeData(buf *dnsBuffer) {
-	// TODO: handle error
-	encodeName(buf, r.PTRDNAME)
+func (r *RR_PTR) writeData(buf *dnsBuffer) error {
+	return encodeName(buf, r.PTRDNAME)
 }
 
 var _ RRData = (*RR_SOA)(nil)
@@ -480,15 +487,19 @@ func (r *RR_SOA) String() string {
 }
 
 // writeData implements RRData.
-func (r *RR_SOA) writeData(buf *dnsBuffer) {
-	// TODO: handle errors
-	encodeName(buf, r.MNAME)
-	encodeName(buf, r.RNAME)
+func (r *RR_SOA) writeData(buf *dnsBuffer) error {
+	if err := encodeName(buf, r.MNAME); err != nil {
+		return err
+	}
+	if err := encodeName(buf, r.RNAME); err != nil {
+		return err
+	}
 	buf.WriteU32(r.SERIAL)
 	buf.WriteU32(r.REFRESH)
 	buf.WriteU32(r.RETRY)
 	buf.WriteU32(r.EXPIRE)
 	buf.WriteU32(r.MINIMUM)
+	return nil
 }
 
 var _ RRData = (*RR_TXT)(nil)
@@ -503,10 +514,9 @@ func (r *RR_TXT) String() string {
 }
 
 // writeData implements RRData.
-func (r *RR_TXT) writeData(buf *dnsBuffer) {
-	// TODO: handle error
+func (r *RR_TXT) writeData(buf *dnsBuffer) error {
 	// TODO: RFC1035 says one or more character strings, this implementation might be incorrect.
-	encodeCharacterString(buf, r.Data)
+	return encodeCharacterString(buf, r.Data)
 }
 
 var _ RRData = (*RR_WKS)(nil)
@@ -523,12 +533,13 @@ func (r *RR_WKS) String() string {
 }
 
 // writeData implements RRData.
-func (r *RR_WKS) writeData(buf *dnsBuffer) {
+func (r *RR_WKS) writeData(buf *dnsBuffer) error {
 	buf.Write(r.Address[:])
 	buf.WriteU8(r.Protocol)
 	for _, v := range r.Services {
 		buf.WriteU8(v)
 	}
+	return nil
 }
 
 func resourceRecordToString(header *RR_Header, extra ...any) string {

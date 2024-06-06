@@ -178,7 +178,7 @@ func (s *Server) tcpWriter(ctx context.Context, conn net.Conn, receiver <-chan *
 		case <-ctx.Done():
 			return
 		case msg := <-receiver:
-			encoded := Encode(msg)
+			encoded := EncodeOrServerError(msg, MessageSizeLimitTCP)
 			if _, err := conn.Write(encoded); err != nil {
 				slog.Error("failed to write to tcp connection", "error", err, "remote", conn.RemoteAddr())
 				conn.Close()
@@ -227,7 +227,7 @@ func (s *Server) udpWriter(conn net.PacketConn, receiver <-chan messageWithAddr)
 		case <-s.ctx.Done():
 			return
 		case msg := <-receiver:
-			encoded := Encode(msg.message)
+			encoded := EncodeOrServerError(msg.message, MessageSizeLimitUDP)
 			if _, err := conn.WriteTo(encoded, msg.addr); err != nil {
 				slog.Warn("failed to write udp response", "error", err, "remote", msg.addr)
 			}

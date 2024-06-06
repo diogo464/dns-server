@@ -1,13 +1,39 @@
 package dns
 
-func Encode(message *Message) []byte {
-	buf := newDnsBuffer(make([]byte, 512))
+func EncodeOrServerError(message *Message, messageSizeLimit int) []byte {
+	encoded, err := Encode(message, messageSizeLimit)
+	if err == nil {
+		return encoded
+	} else {
+		encodedErr, _ := Encode(createErrorResponseMessage(message, RCODE_SERVER_FAILURE), messageSizeLimit)
+		return encodedErr
+	}
+}
+
+func Encode(message *Message, messageSizeLimit int) ([]byte, error) {
+	buf := newDnsBuffer(make([]byte, messageSizeLimit))
 	encodeHeader(buf, &message.Header)
-	encodeQuestions(buf, message.Questions)
-	encodeResourceRecords(buf, message.Answers)
-	encodeResourceRecords(buf, message.Authority)
-	encodeResourceRecords(buf, message.Additional)
-	return buf.Bytes()
+	if err := encodeQuestions(buf, message.Questions); err != nil {
+		return nil, err
+	}
+	if err := encodeResourceRecords(buf, message.Answers); err != nil {
+		return nil, err
+	}
+	if err := encodeResourceRecords(buf, message.Authority); err != nil {
+		return nil, err
+	}
+	if err := encodeResourceRecords(buf, message.Additional); err != nil {
+		return nil, err
+	}
+	if buf.Truncated() {
+		header := message.Header
+		header.Truncated = true
+		prevPosition := buf.Position()
+		buf.SetPosition(0)
+		encodeHeader(buf, &header)
+		buf.SetPosition(prevPosition)
+	}
+	return buf.Bytes(), nil
 }
 
 func encodeU16Bit(v bool, bit int) uint16 {
@@ -69,18 +95,14 @@ func encodeResourceRecord(buf *dnsBuffer, rr RR) error {
 
 	startPos := buf.Position()
 	buf.WriteU16(0)
-	rr.Data.writeData(buf) // TODO: handle error
+	if err := rr.Data.writeData(buf); err != nil {
+		return err
+	}
 	endPos := buf.Position()
 	dataLen := uint16(endPos - startPos - 2)
 	buf.SetPosition(startPos)
 	buf.WriteU16(dataLen)
 	buf.SetPosition(endPos)
-
-	// if len(rr.Data) > 0xFFFF {
-	// 	return ErrResourceRecordDataToLarge
-	// }
-	// buf.WriteU16(uint16(len(rr.Data)))
-	// buf.Write(rr.Data)
 
 	return nil
 }

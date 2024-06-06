@@ -9,6 +9,9 @@ import (
 	"strings"
 )
 
+const MessageSizeLimitUDP = 512
+const MessageSizeLimitTCP = 65535
+
 var RootNameServers []string = []string{
 	"a.root-servers.net.",
 	"b.root-servers.net.",
