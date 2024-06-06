@@ -7,8 +7,6 @@ import (
 	"net"
 )
 
-// TODO: follow CNAMEs
-
 type workerResolver struct {
 	// keep track of resolved domains for the current query to prevent loops due to CNAMEs
 	resolvedDomains map[string]struct{}
@@ -98,11 +96,13 @@ func (r *workerResolver) resolveRecursive(name string, ty uint16) ([]RR, error) 
 				continue
 			}
 
-			for _, ip := range extractIpsFromRRs(rrs) {
-				nextServers = append(nextServers, sockAddr{
-					Ip:   ip,
-					Port: 53,
-				})
+			for _, rr := range rrs {
+				if ip := extractIpFromRR(rr); ip != nil {
+					nextServers = append(nextServers, sockAddr{
+						Ip:   ip,
+						Port: 53,
+					})
+				}
 			}
 		}
 	}

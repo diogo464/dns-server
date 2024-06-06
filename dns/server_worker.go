@@ -82,14 +82,14 @@ func (w *worker) process(job workerJob) *Message {
 		return createErrorResponseMessage(msg, RCODE_NOT_IMPLEMENTED)
 	}
 
-	rrs, resolve := w.cache.get(question.Name, question.Type)
-	if resolve {
+	rrs := w.cache.get(question.Name, question.Type)
+	if rrs == nil {
 		resolvedRRs, err := w.resolver.Resolve(question.Name, question.Type)
 		if err != nil {
 			slog.Warn("failed to resolve name", "error", err, "name", question.Name)
 			return createErrorResponseMessage(msg, RCODE_SERVER_FAILURE)
 		}
-		w.cache.put(question.Name, resolvedRRs, question.Type)
+		w.cache.put(question.Name, question.Type, resolvedRRs)
 		rrs = resolvedRRs
 	}
 
