@@ -54,7 +54,9 @@ func (w *worker) run() {
 
 func (w *worker) process(job workerJob) *Message {
 	slog.Info("processing job")
-	fmt.Println(job.message)
+	if debugLogEnabled() {
+		fmt.Println(job.message)
+	}
 
 	msg := job.message
 
@@ -100,8 +102,11 @@ func (w *worker) process(job workerJob) *Message {
 	response.Header.AnswerCount = uint16(len(rrs))
 	response.Questions = msg.Questions
 	response.Answers = rrs
-	fmt.Println("response")
-	fmt.Println(response)
+
+	if debugLogEnabled() {
+		fmt.Println("response")
+		fmt.Println(response)
+	}
 
 	return response
 }
@@ -139,7 +144,6 @@ func (w *worker) resolve(name string, ty uint16, visitedCNAMEs map[string]struct
 		if len(nameserverips) == 0 {
 			continue
 		}
-		fmt.Println("querying ", nameserver)
 
 		sockaddrs := make([]sockAddr, len(nameserverips))
 		for idx, ip := range nameserverips {
@@ -172,7 +176,6 @@ func (w *worker) resolve(name string, ty uint16, visitedCNAMEs map[string]struct
 		for zone, zoneNameservers := range zoneAuthorities {
 			w.authorityCache.Put(zone, zoneNameservers, zoneAuthoritiesMinTTL)
 			for _, nameserver := range zoneNameservers {
-				fmt.Println("adding ", nameserver, " to queue")
 				nameservers = append(nameservers, nameserver)
 			}
 		}
@@ -277,8 +280,10 @@ func requestTcp(addr sockAddr, name string, ty uint16) (*Message, error) {
 		return nil, ErrIncorrectIdReceived
 	}
 
-	fmt.Println("server response")
-	fmt.Println(resp)
+	if debugLogEnabled() {
+		fmt.Println("server response")
+		fmt.Println(resp)
+	}
 
 	return resp, nil
 }

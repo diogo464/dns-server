@@ -1,6 +1,7 @@
 package dns
 
 import (
+	"log/slog"
 	"math/rand"
 	"net"
 	"slices"
@@ -150,4 +151,8 @@ func createErrorResponseMessage(request *Message, code uint8) *Message {
 	message.Header.Response = true
 	message.Header.ResponseCode = code
 	return message
+}
+
+func debugLogEnabled() bool {
+	return slog.Default().Enabled(nil, slog.LevelDebug)
 }
