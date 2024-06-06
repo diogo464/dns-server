@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"log/slog"
 	"os"
 
@@ -14,11 +13,17 @@ var FlagDebug = flag.Bool("debug", false, "enable debug logs")
 func main() {
 	flag.Parse()
 
-	args := flag.Args()
-	if len(args) != 1 {
-		fmt.Printf("usage: %v [name]\n", os.Args[0])
-		os.Exit(1)
-	}
+	// for nameserver, ip := range dns.RootNameServersIpv4 {
+	// 	fmt.Printf("%v: %v %v %v %v\n", nameserver, ip[0], ip[1], ip[2], ip[3])
+	// }
+	//
+	// return
+
+	// args := flag.Args()
+	// if len(args) != 1 {
+	// 	fmt.Printf("usage: %v [name]\n", os.Args[0])
+	// 	os.Exit(1)
+	// }
 
 	if *FlagDebug {
 		slog.SetLogLoggerLevel(slog.LevelDebug)

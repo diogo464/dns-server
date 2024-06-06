@@ -2,8 +2,12 @@ package dns
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
 	"log/slog"
+	"math"
+	"net"
+	"slices"
 )
 
 const defaultWorkerChannSize = 64
@@ -14,22 +18,22 @@ type workerJob struct {
 }
 
 type worker struct {
-	ctx      context.Context
-	cancel   context.CancelFunc
-	chann    chan workerJob
-	cache    *workerCache
-	resolver *workerResolver
+	ctx            context.Context
+	cancel         context.CancelFunc
+	chann          chan workerJob
+	authorityCache AuthorityCache
+	resourceCache  ResourceCache
 }
 
 func newWorker() *worker {
 	chann := make(chan workerJob, defaultWorkerChannSize)
 	ctx, cancel := context.WithCancel(context.Background())
 	return &worker{
-		ctx:      ctx,
-		cancel:   cancel,
-		chann:    chann,
-		cache:    newWorkerCache(),
-		resolver: newWorkerResolver(),
+		ctx:            ctx,
+		cancel:         cancel,
+		chann:          chann,
+		authorityCache: NewExclusiveAuthorityCache(),
+		resourceCache:  NewSharedResourceCache(),
 	}
 }
 
@@ -82,15 +86,9 @@ func (w *worker) process(job workerJob) *Message {
 		return createErrorResponseMessage(msg, RCODE_NOT_IMPLEMENTED)
 	}
 
-	rrs := w.cache.get(question.Name, question.Type)
+	rrs := w.resolve(question.Name, question.Type, make(map[string]struct{}))
 	if rrs == nil {
-		resolvedRRs, err := w.resolver.Resolve(question.Name, question.Type)
-		if err != nil {
-			slog.Warn("failed to resolve name", "error", err, "name", question.Name)
-			return createErrorResponseMessage(msg, RCODE_SERVER_FAILURE)
-		}
-		w.cache.put(question.Name, question.Type, resolvedRRs)
-		rrs = resolvedRRs
+		return createErrorResponseMessage(msg, RCODE_SERVER_FAILURE)
 	}
 
 	response := &Message{}
@@ -107,4 +105,182 @@ func (w *worker) process(job workerJob) *Message {
 	fmt.Println(response)
 
 	return response
+}
+
+// resolve the name following CNAMEs if necessary
+func (w *worker) resolve(name string, ty uint16, visitedCNAMEs map[string]struct{}) []RR {
+	if ip, ok := RootNameServersIpv4[name]; ok {
+		return []RR{{
+			RR_Header: RR_Header{
+				Name:  name,
+				Type:  ty,
+				Class: CLASS_IN,
+			},
+			Data: &RR_A{Addr: ip},
+		}}
+	}
+
+	if rrs := w.resourceCache.Get(name, ty); rrs != nil {
+		return rrs
+	}
+
+	// find best nameservers and reverse to create a queue with the best element at the end
+	nameservers := FindBestAuthorityServers(w.authorityCache, name)
+	slices.Reverse(nameservers)
+
+	resolveAnswer := make([]RR, 0)
+	for {
+		if len(nameservers) == 0 {
+			break
+		}
+
+		nameserver := nameservers[len(nameservers)-1]
+		nameservers = nameservers[:len(nameservers)-1]
+		nameserverrrs := w.resolve(nameserver, TYPE_A, visitedCNAMEs)
+		nameserverips := extractIpsFromRRs(nameserverrrs)
+		if len(nameserverips) == 0 {
+			continue
+		}
+		fmt.Println("querying ", nameserver)
+
+		sockaddrs := make([]sockAddr, len(nameserverips))
+		for idx, ip := range nameserverips {
+			sockaddrs[idx] = sockAddr{
+				Ip:   ip,
+				Port: 53,
+			}
+		}
+
+		resp, err := requestTcpAny(sockaddrs, name, ty)
+		if err != nil {
+			slog.Warn("failed to request", "error", err, "nameserver", nameserver)
+			continue
+		}
+
+		if len(resp.Answers) != 0 {
+			resolveAnswer = resp.Answers
+			break
+		}
+
+		zoneAuthoritiesMinTTL := uint32(math.MaxUint32)
+		zoneAuthorities := make(map[string][]string)
+		for _, rr := range resp.Authority {
+			if rr_ns, ok := rr.Data.(*RR_NS); ok {
+				zoneAuthorities[rr.Name] = append(zoneAuthorities[rr.Name], rr_ns.Nameserver)
+				zoneAuthoritiesMinTTL = min(zoneAuthoritiesMinTTL, rr.TTL)
+			}
+		}
+
+		for zone, zoneNameservers := range zoneAuthorities {
+			w.authorityCache.Put(zone, zoneNameservers, zoneAuthoritiesMinTTL)
+			for _, nameserver := range zoneNameservers {
+				fmt.Println("adding ", nameserver, " to queue")
+				nameservers = append(nameservers, nameserver)
+			}
+		}
+
+		for _, rr := range resp.Additional {
+			if rr.Type == TYPE_A || rr.Type == TYPE_AAAA {
+				w.resourceCache.Put(rr.Name, rr.Type, []RR{rr})
+			}
+		}
+	}
+
+	for _, rr := range resolveAnswer {
+		if rr.Type == TYPE_CNAME && ty != TYPE_CNAME {
+			cname := rr.Data.(*RR_CNAME)
+			if _, visited := visitedCNAMEs[cname.CNAME]; !visited {
+				visitedCNAMEs[cname.CNAME] = struct{}{}
+				cnamerrs := w.resolve(cname.CNAME, ty, visitedCNAMEs)
+				if cnamerrs == nil {
+					slog.Warn("failed to resolve cname", "cname", cname.CNAME)
+					return nil
+				}
+				for _, cnamerr := range cnamerrs {
+					resolveAnswer = append(resolveAnswer, cnamerr)
+				}
+			}
+		}
+	}
+
+	w.resourceCache.Put(name, ty, resolveAnswer)
+
+	return resolveAnswer
+}
+
+func requestTcpAny(addrs []sockAddr, name string, ty uint16) (*Message, error) {
+	lastErr := fmt.Errorf("no servers available")
+	for _, addr := range addrs {
+		slog.Debug("sending request", "address", addr)
+		if msg, err := requestTcp(addr, name, ty); err == nil {
+			slog.Debug("received response", "response", msg)
+			return msg, nil
+		} else {
+			lastErr = err
+			slog.Debug("failed to send request, trying next server", "address", addr, "error", err)
+		}
+	}
+	return nil, lastErr
+}
+
+func requestTcp(addr sockAddr, name string, ty uint16) (*Message, error) {
+	conn, err := net.Dial("tcp", addr.String())
+	if err != nil {
+		slog.Debug("failed to dial dns server", "address", addr, "error", err)
+		return nil, err
+	}
+
+	msg := Message{}
+	msg.Header.Id = genRandomId()
+	msg.Header.Opcode = OPCODE_QUERY
+	msg.Header.QuestionCount = 1
+	msg.Questions = []Question{
+		{
+			Name:  name,
+			Type:  ty,
+			Class: CLASS_IN,
+		},
+	}
+
+	encodedRequest := Encode(&msg)
+	encodedLength := make([]byte, 2)
+	binary.BigEndian.PutUint16(encodedLength, uint16(len(encodedRequest)))
+	if _, err := conn.Write(encodedLength); err != nil {
+		slog.Debug("failed to write request length", "error", err)
+		return nil, err
+	}
+	if _, err := conn.Write(encodedRequest); err != nil {
+		slog.Debug("failed to write request", "error", err)
+		return nil, err
+	}
+
+	msgLen := make([]byte, 2)
+	if _, err := conn.Read(msgLen); err != nil {
+		slog.Debug("failed to read message length", "error", err)
+		return nil, err
+	}
+	mlen := binary.BigEndian.Uint16(msgLen)
+
+	buf := make([]byte, mlen)
+	_, err = conn.Read(buf)
+	if err != nil {
+		slog.Debug("failed to read response", "error", err)
+		return nil, err
+	}
+
+	resp, err := Decode(buf)
+	if err != nil {
+		slog.Debug("failed to decoded response", "error", err)
+		return nil, err
+	}
+
+	if resp.Header.Id != msg.Header.Id {
+		slog.Debug("received incorrect message id")
+		return nil, ErrIncorrectIdReceived
+	}
+
+	fmt.Println("server response")
+	fmt.Println(resp)
+
+	return resp, nil
 }

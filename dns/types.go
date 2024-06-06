@@ -230,7 +230,8 @@ func (rr *RR_A) writeData(buf *dnsBuffer) {
 }
 
 func (rr *RR_A) ToNetIp() net.IP {
-	return net.IPv4(rr.Addr[3], rr.Addr[2], rr.Addr[1], rr.Addr[0])
+	//return net.IPv4(rr.Addr[3], rr.Addr[2], rr.Addr[1], rr.Addr[0])
+	return net.IPv4(rr.Addr[0], rr.Addr[1], rr.Addr[2], rr.Addr[3])
 }
 
 var _ RRData = (*RR_AAAA)(nil)

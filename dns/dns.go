@@ -8,6 +8,38 @@ import (
 	"strings"
 )
 
+var RootNameServers []string = []string{
+	"a.root-servers.net.",
+	"b.root-servers.net.",
+	"c.root-servers.net.",
+	"d.root-servers.net.",
+	"e.root-servers.net.",
+	"f.root-servers.net.",
+	"g.root-servers.net.",
+	"h.root-servers.net.",
+	"i.root-servers.net.",
+	"j.root-servers.net.",
+	"k.root-servers.net.",
+	"l.root-servers.net.",
+	"m.root-servers.net.",
+}
+
+var RootNameServersIpv4 map[string][4]byte = map[string][4]byte{
+	"a.root-servers.net.": {198, 41, 0, 4},
+	"b.root-servers.net.": {170, 247, 170, 2},
+	"c.root-servers.net.": {192, 33, 4, 12},
+	"d.root-servers.net.": {199, 7, 91, 13},
+	"e.root-servers.net.": {192, 203, 230, 10},
+	"f.root-servers.net.": {192, 5, 5, 241},
+	"g.root-servers.net.": {192, 112, 36, 4},
+	"h.root-servers.net.": {198, 97, 190, 53},
+	"i.root-servers.net.": {192, 36, 148, 17},
+	"j.root-servers.net.": {192, 58, 128, 30},
+	"k.root-servers.net.": {193, 0, 14, 129},
+	"l.root-servers.net.": {199, 7, 83, 42},
+	"m.root-servers.net.": {202, 12, 27, 33},
+}
+
 var RootServersIpv4 []net.IP = []net.IP{
 	net.IPv4(198, 41, 0, 4),    // a
 	net.IPv4(170, 247, 170, 2), // b

@@ -98,7 +98,7 @@ func decodeResourceRecord(buf *dnsBuffer) (RR, error) {
 	switch ty {
 	case TYPE_A:
 		data := buf.Read(int(dlen))
-		return RR{RR_Header: header, Data: &RR_A{Addr: [4]byte{data[3], data[2], data[1], data[0]}}}, nil
+		return RR{RR_Header: header, Data: &RR_A{Addr: [4]byte{data[0], data[1], data[2], data[3]}}}, nil
 	case TYPE_NS:
 		nsname, err := decodeName(buf)
 		if err != nil {
